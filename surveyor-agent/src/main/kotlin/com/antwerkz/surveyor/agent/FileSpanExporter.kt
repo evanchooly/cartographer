@@ -18,6 +18,9 @@ class FileSpanExporter(
 
     override fun export(spans: Collection<SpanData>): CompletableResultCode {
         lock.withLock { pending.addAll(spans) }
+        if (spans.any { !it.parentSpanContext.isValid }) {
+            flush()
+        }
         return CompletableResultCode.ofSuccess()
     }
 
@@ -27,10 +30,10 @@ class FileSpanExporter(
 
         outputDir.mkdirs()
         val safeName = testNameSupplier().replace(Regex("[^a-zA-Z0-9._-]"), "_")
-        val outFile = File(outputDir, "$safeName.json")
+        val outFile = File(outputDir, "$safeName.pb")
 
         outFile.outputStream().use { stream ->
-            TraceRequestMarshaler.create(toWrite).writeJsonTo(stream)
+            TraceRequestMarshaler.create(toWrite).writeBinaryTo(stream)
         }
 
         return CompletableResultCode.ofSuccess()

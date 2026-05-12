@@ -10,7 +10,7 @@ object MethodAdvice {
     @JvmStatic
     @Advice.OnMethodEnter(suppress = Throwable::class)
     fun onEnter(
-        @Advice.Origin("#t##m") signature: String,
+        @Advice.Origin("#t.#m") signature: String,
         @Advice.AllArguments args: Array<Any?>
     ): Scope? {
         val tracer = SurveyorContext.tracer ?: return null

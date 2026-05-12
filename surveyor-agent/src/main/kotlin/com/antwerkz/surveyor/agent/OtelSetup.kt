@@ -2,7 +2,7 @@ package com.antwerkz.surveyor.agent
 
 import io.opentelemetry.exporter.otlp.http.trace.OtlpHttpSpanExporter
 import io.opentelemetry.sdk.trace.SdkTracerProvider
-import io.opentelemetry.sdk.trace.export.BatchSpanProcessor
+import io.opentelemetry.sdk.trace.export.SimpleSpanProcessor
 import io.opentelemetry.sdk.trace.export.SpanExporter
 
 object OtelSetup {
@@ -15,7 +15,7 @@ object OtelSetup {
                 .build()
         }
 
-        val processor = BatchSpanProcessor.builder(SpanExporter.composite(exporters)).build()
+        val processor = SimpleSpanProcessor.create(SpanExporter.composite(exporters))
         return SdkTracerProvider.builder().addSpanProcessor(processor).build()
     }
 }

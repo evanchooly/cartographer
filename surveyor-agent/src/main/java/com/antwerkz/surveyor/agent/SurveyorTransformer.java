@@ -56,7 +56,8 @@ public class SurveyorTransformer {
                         ProtectionDomain protectionDomain) {
                     return builder
                         .visit(Advice.to(TestRootAdvice.class).on(testAnnotations))
-                        .visit(Advice.to(MethodAdvice.class).on(generalMethods.or(ctors)));
+                        .visit(Advice.to(MethodAdvice.class).on(generalMethods))
+                        .visit(Advice.to(CtorAdvice.class).on(ctors));
                 }
             })
             .installOn(instrumentation);

@@ -30,14 +30,8 @@ class SurveyorMojo : AbstractMojo() {
     @Parameter(defaultValue = "256")
     var maxArgLength: Int = 256
 
-    @Parameter(defaultValue = "\${project.pluginArtifacts}", readonly = true, required = true)
+    @Parameter(defaultValue = "\${plugin.artifacts}", readonly = true, required = true)
     lateinit var pluginArtifacts: List<Artifact>
-
-    @Parameter(defaultValue = "\${argLine}", readonly = false)
-    var argLine: String? = null
-
-    @Parameter(defaultValue = "\${project.properties}", readonly = false)
-    lateinit var projectProperties: java.util.Properties
 
     @Parameter(defaultValue = "\${project}", readonly = true, required = true)
     lateinit var project: org.apache.maven.project.MavenProject

@@ -100,6 +100,11 @@
                         <id>java-compile</id>
                         <phase>compile</phase>
                         <goals><goal>compile</goal></goals>
+                        <configuration>
+                            <compileSourceRoots>
+                                <compileSourceRoot>${project.basedir}/src/main/java</compileSourceRoot>
+                            </compileSourceRoots>
+                        </configuration>
                     </execution>
                     <execution>
                         <id>java-test-compile</id>

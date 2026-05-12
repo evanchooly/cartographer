@@ -9,7 +9,7 @@ object TestRootAdvice {
 
     @JvmStatic
     @Advice.OnMethodEnter(suppress = Throwable::class)
-    fun onEnter(@Advice.Origin("#t##m") signature: String): Scope? {
+    fun onEnter(@Advice.Origin("#t.#m") signature: String): Scope? {
         val tracer = SurveyorContext.tracer ?: return null
         SurveyorContext.currentTestName = signature
         val span = tracer.spanBuilder(signature).setNoParent().startSpan()
