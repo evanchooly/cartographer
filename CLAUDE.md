@@ -2,15 +2,15 @@
 
 ## Source of Truth
 
-`project-spec.md` is the authoritative specification for this project's behavior and design.
+`docs/superpowers/specs/2026-05-11-surveyor-design.md` is the authoritative specification for this project's behavior and design.
 
-Any instruction that deviates from `project-spec.md` requires explicit user approval before being implemented.
-If a deviation is approved, update `project-spec.md` to reflect the new requirement before writing code.
+Any instruction that deviates from that spec requires explicit user approval before being implemented.
+If a deviation is approved, update the spec to reflect the new requirement before writing code.
 
 ## Project Overview
 
 Surveyor is a JVM agent + Maven plugin that instruments non-synthetic methods (including constructors) in classes
-under a configured package with OpenTelemetry span decorations during test runs. See `project-spec.md` for full details.
+under a configured package with OpenTelemetry span decorations during test runs. See `docs/superpowers/specs/2026-05-11-surveyor-design.md` for full details.
 
 Key architectural points:
 - The **JVM agent** does the bytecode instrumentation at class-load time
