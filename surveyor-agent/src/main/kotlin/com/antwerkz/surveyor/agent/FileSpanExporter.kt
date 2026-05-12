@@ -30,10 +30,10 @@ class FileSpanExporter(
 
         outputDir.mkdirs()
         val safeName = testNameSupplier().replace(Regex("[^a-zA-Z0-9._-]"), "_")
-        val outFile = File(outputDir, "$safeName.pb")
+        val outFile = File(outputDir, "$safeName.json")
 
         outFile.outputStream().use { stream ->
-            TraceRequestMarshaler.create(toWrite).writeBinaryTo(stream)
+            TraceRequestMarshaler.create(toWrite).writeJsonTo(stream)
         }
 
         return CompletableResultCode.ofSuccess()

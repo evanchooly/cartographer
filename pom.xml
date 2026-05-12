@@ -1,18 +1,20 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
-    <modelVersion>4.0.0</modelVersion>
+<project xmlns="http://maven.apache.org/POM/4.1.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.1.0 http://maven.apache.org/xsd/maven-4.1.0.xsd">
+    <modelVersion>4.1.0</modelVersion>
 
     <groupId>com.antwerkz</groupId>
     <artifactId>surveyor</artifactId>
     <version>1.0-SNAPSHOT</version>
     <packaging>pom</packaging>
 
-    <modules>
-        <module>surveyor-agent</module>
-        <module>surveyor-maven-plugin</module>
-    </modules>
+    <repositories>
+        <repository>
+            <id>central</id>
+            <name>Maven Central Repository</name>
+            <url>https://repo.maven.apache.org/maven2/</url>
+        </repository>
+    </repositories>
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -22,6 +24,7 @@
         <bytebuddy.version>1.15.10</bytebuddy.version>
         <junit.version>5.12.2</junit.version>
         <opentelemetry.version>1.62.0</opentelemetry.version>
+        <maven.version>4.0.0-rc-5</maven.version>
         <maven.compiler.source>17</maven.compiler.source>
         <maven.compiler.target>17</maven.compiler.target>
     </properties>
@@ -102,4 +105,10 @@
             </plugins>
         </pluginManagement>
     </build>
+
+    <subprojects>
+        <subproject>surveyor-agent</subproject>
+        <subproject>surveyor-maven-plugin</subproject>
+    </subprojects>
+
 </project>
