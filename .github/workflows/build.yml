@@ -12,6 +12,24 @@ concurrency:
 
 jobs:
   Build:
-    uses: evanchooly/workflows/.github/workflows/build.yml@master
-    with:
-      java: 17
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          java-version: 17
+          distribution: temurin
+          cache: maven
+
+      - name: Set up Maven via sdkman
+        uses: sdkman/sdkman-action@main
+        with:
+          candidate: maven
+          version: 4.0.0-rc-5
+
+      - name: Build
+        run: mvn -e -U install

@@ -3,8 +3,54 @@ name: Pull Requests
 on:
   pull_request:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   Build:
-    uses: evanchooly/workflows/.github/workflows/pull-request.yml@master
-    with:
-      java: 17
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          java-version: 17
+          distribution: temurin
+          cache: maven
+
+      - name: Set up Maven via sdkman
+        uses: sdkman/sdkman-action@main
+        with:
+          candidate: maven
+          version: 4.0.0-rc-5
+
+      - name: Build
+        run: mvn -e -U install
+
+  Automerge:
+    if: ${{ github.actor == 'dependabot[bot]' }}
+    name: Automerge dependabot PRs
+    needs:
+      - Build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    concurrency:
+      group: "dependabot-automerge-${{ github.base_ref }}"
+      cancel-in-progress: false
+    steps:
+      - name: Dependabot metadata
+        id: metadata
+        uses: dependabot/fetch-metadata@v2
+        with:
+          github-token: "${{ secrets.GITHUB_TOKEN }}"
+      - name: Enable auto-merge for Dependabot PRs
+        run: gh pr merge --auto --squash "$PR_URL"
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
