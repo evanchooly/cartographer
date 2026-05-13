@@ -42,9 +42,9 @@ class SpanDetailPanel(private val onGoToSource: (SpanNode) -> Unit) : JPanel(Bor
         nameLabel.text = span.simpleName
         durationLabel.text = "%.0fms".format(span.durationMs)
         attrsLabel.text = span.attributes.entries
+            .filter { it.key.startsWith("arg.") }
             .sortedBy { it.key }
             .joinToString("  ") { "${it.key}: ${it.value}" }
-            .ifEmpty { "" }
         isVisible = true
         revalidate()
         repaint()
