@@ -20,6 +20,7 @@ dependencies {
         intellijIdeaCommunity("2024.1")
         bundledPlugin("com.intellij.java")
         testFramework(TestFrameworkType.Platform)
+        testFramework(TestFrameworkType.Bundled)
     }
     testImplementation(kotlin("test-junit"))
     testImplementation("junit:junit:4.13.2")
