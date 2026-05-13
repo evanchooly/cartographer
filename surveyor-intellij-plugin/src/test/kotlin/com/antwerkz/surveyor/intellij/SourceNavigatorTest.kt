@@ -1,6 +1,7 @@
 package com.antwerkz.surveyor.intellij
 
 import com.intellij.testFramework.fixtures.LightJavaCodeInsightFixtureTestCase
+import com.intellij.util.ui.UIUtil
 
 class SourceNavigatorTest : LightJavaCodeInsightFixtureTestCase() {
 
@@ -12,13 +13,15 @@ class SourceNavigatorTest : LightJavaCodeInsightFixtureTestCase() {
             }
         """.trimIndent())
 
-        // navigate(true) opens an editor — just verify no exception is thrown
         SourceNavigator.navigate(project, "com.example.Calculator.add")
+        UIUtil.dispatchAllInvocationEvents()
+        // No exception = PSI lookup and navigation completed without error
     }
 
     fun `test navigate shows balloon for unknown class`() {
-        // Should not throw — missing class falls back to HintManager balloon
         SourceNavigator.navigate(project, "com.example.NonExistent.method")
+        UIUtil.dispatchAllInvocationEvents()
+        // Should not throw — null class is handled gracefully
     }
 
     fun `test navigate handles constructor`() {
@@ -27,5 +30,6 @@ class SourceNavigatorTest : LightJavaCodeInsightFixtureTestCase() {
             public class Widget { public Widget() {} }
         """.trimIndent())
         SourceNavigator.navigate(project, "com.example.Widget.<init>")
+        UIUtil.dispatchAllInvocationEvents()
     }
 }
