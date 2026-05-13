@@ -1,5 +1,6 @@
 package com.antwerkz.surveyor.intellij
 
+import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.VirtualFileManager
 import com.intellij.openapi.vfs.newvfs.BulkFileListener
@@ -54,6 +55,6 @@ class TraceFileWatcher(
         } else {
             emptyList()
         }
-        onChange(files)
+        ApplicationManager.getApplication().invokeLater { onChange(files) }
     }
 }
