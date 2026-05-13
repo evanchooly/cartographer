@@ -68,4 +68,37 @@ class PomConfigReaderTest {
         val result = PomConfigReader.readOutputDir(pom.parentFile)
         assertEquals(File(pom.parentFile, "target/surveyor"), result)
     }
+
+    @Test
+    fun `does not confuse plugin dependency groupId with plugin groupId`() {
+        val pom = tmp.newFile("pom.xml").also {
+            it.writeText("""
+                <project>
+                  <build>
+                    <plugins>
+                      <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-compiler-plugin</artifactId>
+                        <dependencies>
+                          <dependency>
+                            <groupId>com.antwerkz</groupId>
+                            <artifactId>surveyor-maven-plugin</artifactId>
+                          </dependency>
+                        </dependencies>
+                      </plugin>
+                      <plugin>
+                        <groupId>com.antwerkz</groupId>
+                        <artifactId>surveyor-maven-plugin</artifactId>
+                        <configuration>
+                          <outputDir>real/output</outputDir>
+                        </configuration>
+                      </plugin>
+                    </plugins>
+                  </build>
+                </project>
+            """.trimIndent())
+        }
+        val result = PomConfigReader.readOutputDir(pom.parentFile)
+        assertEquals(File(pom.parentFile, "real/output"), result)
+    }
 }
