@@ -2,7 +2,7 @@ import org.jetbrains.intellij.platform.gradle.TestFrameworkType
 
 plugins {
     id("org.jetbrains.intellij.platform") version "2.5.0"
-    kotlin("jvm") version "2.0.20"
+    kotlin("jvm") version "2.3.20"
 }
 
 group = "com.antwerkz"
@@ -21,7 +21,7 @@ dependencies {
         bundledPlugin("com.intellij.java")
         testFramework(TestFrameworkType.Platform)
     }
-    testImplementation(kotlin("test"))
+    testImplementation(kotlin("test-junit"))
     testImplementation("junit:junit:4.13.2")
 }
 

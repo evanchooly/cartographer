@@ -1,7 +1,7 @@
-rootProject.name = "surveyor-intellij-plugin"
-
 pluginManagement {
     repositories {
         gradlePluginPortal()
     }
 }
+
+rootProject.name = "surveyor-intellij-plugin"
