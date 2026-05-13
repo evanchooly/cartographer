@@ -10,7 +10,7 @@ object OtlpJsonParser {
     fun parse(file: File): List<SpanNode> {
         val raw = mutableListOf<RawSpan>()
         try {
-            val root = JsonParser.parseReader(file.reader()).asJsonObject
+            val root = file.reader().use { JsonParser.parseReader(it).asJsonObject }
             root.getAsJsonArray("resourceSpans")?.forEach { rs ->
                 rs.asJsonObject.getAsJsonArray("scopeSpans")?.forEach { ss ->
                     ss.asJsonObject.getAsJsonArray("spans")?.forEach { s ->
@@ -18,7 +18,9 @@ object OtlpJsonParser {
                     }
                 }
             }
-        } catch (_: Exception) {
+        } catch (_: com.google.gson.JsonParseException) {
+            return emptyList()
+        } catch (_: java.io.IOException) {
             return emptyList()
         }
         return buildTree(raw)
