@@ -104,14 +104,14 @@ class TraceListPanel(private val onSelect: (File) -> Unit) : JPanel(BorderLayout
                     val dur = uo.durationMs?.let { "  %.0fms".format(it) } ?: ""
                     text = uo.label + dur
                     if (uo.file.name == "surveyor-run.json") {
-                        foreground = JBColor.GRAY
+                        if (!selected) foreground = JBColor.GRAY
                         font = font.deriveFont(Font.ITALIC)
                     }
                 }
                 is String -> {
                     text = uo
                     icon = null
-                    foreground = JBColor.GRAY
+                    if (!selected) foreground = JBColor.GRAY
                     font = font.deriveFont(Font.ITALIC)
                 }
             }
