@@ -18,6 +18,7 @@ private const val AXIS_HEIGHT = 24
 private const val LABEL_WIDTH = 200
 private const val INDENT_PX = 12
 private const val MIN_BAR_WIDTH = 2
+private const val TICK_INTERVALS = 5  // produces TICK_INTERVALS+1 tick marks (0..TICK_INTERVALS)
 
 class WaterfallPanel(private val onSpanSelected: (SpanNode) -> Unit) : JPanel() {
 
@@ -30,7 +31,7 @@ class WaterfallPanel(private val onSpanSelected: (SpanNode) -> Unit) : JPanel() 
     private val inner = object : JPanel() {
         override fun paintComponent(g: Graphics) {
             super.paintComponent(g)
-            paint(g as Graphics2D)
+            paintWaterfall(g as Graphics2D)
         }
         override fun getPreferredSize() =
             Dimension(parent?.width ?: 600, AXIS_HEIGHT + flatSpans.size * ROW_HEIGHT)
@@ -55,57 +56,70 @@ class WaterfallPanel(private val onSpanSelected: (SpanNode) -> Unit) : JPanel() 
     }
 
     fun load(roots: List<SpanNode>) {
+        assert(SwingUtilities.isEventDispatchThread()) { "load() must be called on EDT" }
         flatSpans = flatten(roots)
         selectedSpan = null
         if (flatSpans.isNotEmpty()) {
             rootStartNano = flatSpans.minOf { it.startNano }
             totalNano = max(1L, flatSpans.maxOf { it.endNano } - rootStartNano)
         }
-        SwingUtilities.invokeLater {
-            inner.revalidate()
-            inner.repaint()
-        }
+        inner.revalidate()
+        inner.repaint()
     }
 
-    private fun flatten(spans: List<SpanNode>): List<SpanNode> = buildList {
-        for (s in spans) {
-            add(s)
-            addAll(flatten(s.children))
+    private fun flatten(spans: List<SpanNode>): List<SpanNode> {
+        val result = mutableListOf<SpanNode>()
+        val stack = ArrayDeque<SpanNode>()
+        spans.reversed().forEach { stack.addLast(it) }
+        while (stack.isNotEmpty()) {
+            val span = stack.removeLast()
+            result += span
+            span.children.reversed().forEach { stack.addLast(it) }
         }
+        return result
     }
 
-    private fun paint(g: Graphics2D) {
-        g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
-
+    private fun paintWaterfall(g: Graphics2D) {
         val w = inner.width
         val barAreaWidth = w - LABEL_WIDTH
+        if (barAreaWidth <= 0) return
+
+        g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
+
+        // Pre-derive fonts once
+        val labelFont = g.font.deriveFont(11f)
+        val smallFont = g.font.deriveFont(9f)
 
         // Time axis
+        g.font = smallFont
         g.color = JBColor.border()
         g.drawLine(LABEL_WIDTH, AXIS_HEIGHT - 1, w, AXIS_HEIGHT - 1)
-        val tickCount = 5
-        g.font = g.font.deriveFont(9f)
-        for (i in 0..tickCount) {
-            val x = LABEL_WIDTH + (barAreaWidth * i / tickCount)
+        for (i in 0..TICK_INTERVALS) {
+            val x = LABEL_WIDTH + (barAreaWidth * i / TICK_INTERVALS)
             g.color = JBColor.GRAY
             g.drawLine(x, AXIS_HEIGHT - 4, x, AXIS_HEIGHT)
-            val ms = "%.0fms".format(totalNano / 1_000_000.0 * i / tickCount)
+            val ms = "%.0fms".format(totalNano / 1_000_000.0 * i / TICK_INTERVALS)
             g.drawString(ms, x + 2, AXIS_HEIGHT - 6)
         }
+
+        // Clip to bar area to prevent bars bleeding outside bounds
+        g.setClip(0, AXIS_HEIGHT, w, inner.height - AXIS_HEIGHT)
 
         // Span rows
         flatSpans.forEachIndexed { i, span ->
             val y = AXIS_HEIGHT + i * ROW_HEIGHT
             val indent = span.depth * INDENT_PX
 
-            // Label
+            // Label (draw outside clip by temporarily removing it)
+            g.clip = null
             g.color = if (span == selectedSpan) JBColor.foreground() else JBColor.GRAY
-            g.font = g.font.deriveFont(11f)
+            g.font = labelFont
             val label = span.simpleName
             val labelX = LABEL_WIDTH - 6 - g.fontMetrics.stringWidth(label)
             g.drawString(label, labelX.coerceAtLeast(0), y + ROW_HEIGHT - 6)
 
-            // Bar
+            // Bar (clipped)
+            g.setClip(LABEL_WIDTH, AXIS_HEIGHT, barAreaWidth, inner.height - AXIS_HEIGHT)
             val relStart = span.startNano - rootStartNano
             val available = max(1, barAreaWidth - indent)
             val barX = LABEL_WIDTH + indent + (relStart.toDouble() / totalNano * available).toInt()
@@ -124,8 +138,9 @@ class WaterfallPanel(private val onSpanSelected: (SpanNode) -> Unit) : JPanel() 
             }
 
             // Duration label
+            g.clip = null
             g.color = JBColor.GRAY
-            g.font = g.font.deriveFont(9f)
+            g.font = smallFont
             g.drawString("%.0fms".format(span.durationMs), barX + barW + 4, y + ROW_HEIGHT - 6)
         }
     }
