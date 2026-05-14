@@ -22,6 +22,7 @@ dependencies {
         testFramework(TestFrameworkType.Platform)
         testFramework(TestFrameworkType.Bundled)
     }
+    implementation("org.apache.maven:maven-model:3.9.9")
     testImplementation(kotlin("test-junit"))
     testImplementation("junit:junit:4.13.2")
 }

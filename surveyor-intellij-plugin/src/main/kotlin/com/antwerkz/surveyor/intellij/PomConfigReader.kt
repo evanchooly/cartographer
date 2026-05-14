@@ -1,53 +1,60 @@
 package com.antwerkz.surveyor.intellij
 
-import org.w3c.dom.Element
-import org.w3c.dom.NodeList
-import org.xml.sax.SAXException
+import org.apache.maven.model.io.xpp3.MavenXpp3Reader
+import org.codehaus.plexus.util.xml.Xpp3Dom
 import java.io.File
-import java.io.IOException
-import javax.xml.parsers.DocumentBuilderFactory
 
 object PomConfigReader {
 
     fun readOutputDir(projectRoot: File): File {
         val pom = File(projectRoot, "pom.xml")
         if (!pom.exists()) return fallback(projectRoot)
-
         return try {
-            val doc = DocumentBuilderFactory.newInstance()
-                .newDocumentBuilder()
-                .parse(pom)
-            doc.documentElement.normalize()
-            val plugins = doc.getElementsByTagName("plugin")
-            for (i in 0 until plugins.length) {
-                val plugin = plugins.item(i) as? Element ?: continue
-                val groupId = plugin.directChildText("groupId")
-                val artifactId = plugin.directChildText("artifactId")
-                if (groupId == "com.antwerkz" && artifactId == "surveyor-maven-plugin") {
-                    val config = plugin.directChild("configuration")
-                    val outputDir = config?.directChildText("outputDir")
-                    return if (outputDir.isNullOrBlank()) fallback(projectRoot)
-                    else File(projectRoot, outputDir)
-                }
-            }
-            fallback(projectRoot)
-        } catch (_: SAXException) {
-            fallback(projectRoot)
-        } catch (_: IOException) {
+            val model = MavenXpp3Reader().read(pom.bufferedReader())
+            val plugin = model.build?.plugins?.find {
+                it.groupId == "com.antwerkz" && it.artifactId == "surveyor-maven-plugin"
+            } ?: return fallback(projectRoot)
+            val outputDir = (plugin.configuration as? Xpp3Dom)?.getChild("outputDir")?.value
+            if (outputDir.isNullOrBlank()) fallback(projectRoot) else File(projectRoot, outputDir)
+        } catch (_: Exception) {
             fallback(projectRoot)
         }
     }
 
-    private fun Element.directChildText(tag: String): String =
-        directChild(tag)?.textContent ?: ""
-
-    private fun Element.directChild(tag: String): Element? {
-        val nodes: NodeList = childNodes
-        for (i in 0 until nodes.length) {
-            val node = nodes.item(i)
-            if (node is Element && node.tagName == tag) return node
+    fun readModules(projectRoot: File): List<Pair<String?, File>> {
+        val pom = File(projectRoot, "pom.xml")
+        if (!pom.exists()) return listOf(null to readOutputDir(projectRoot))
+        return try {
+            // Maven 4.1 <subprojects> — MavenXpp3Reader 3.x doesn't model this element,
+            // so we read it from the DOM directly.
+            val subprojects = domTagValues(pom, "subproject")
+            if (subprojects.isNotEmpty()) {
+                return subprojects.map { it to File(projectRoot, "$it/target/surveyor") }
+            }
+            // Maven 3 / Maven 4.0 <modules>
+            val model = MavenXpp3Reader().read(pom.bufferedReader())
+            val modules = model.modules ?: emptyList()
+            if (modules.isNotEmpty()) {
+                return modules.map { it to File(projectRoot, "$it/target/surveyor") }
+            }
+            listOf(null to readOutputDir(projectRoot))
+        } catch (_: Exception) {
+            listOf(null to readOutputDir(projectRoot))
         }
-        return null
+    }
+
+    private fun domTagValues(pom: File, tagName: String): List<String> {
+        return try {
+            val doc = javax.xml.parsers.DocumentBuilderFactory.newInstance()
+                .newDocumentBuilder().parse(pom)
+            doc.documentElement.normalize()
+            val nodes = doc.getElementsByTagName(tagName)
+            (0 until nodes.length).mapNotNull {
+                nodes.item(it)?.textContent?.trim()?.takeIf { s -> s.isNotEmpty() }
+            }
+        } catch (_: Exception) {
+            emptyList()
+        }
     }
 
     private fun fallback(projectRoot: File) = File(projectRoot, "target/surveyor")
