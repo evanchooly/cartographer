@@ -35,7 +35,7 @@ object PomConfigReader {
             }
             // Maven 3 / Maven 4.0 <modules>
             val model = MavenXpp3Reader().read(pom.bufferedReader())
-            val modules = model.modules ?: emptyList<String>()
+            val modules = model.modules ?: emptyList()
             if (modules.isNotEmpty()) {
                 return modules.map { it to File(projectRoot, "$it/target/surveyor") }
             }

@@ -68,6 +68,7 @@ class SurveyorToolWindowFactory : ToolWindowFactory {
         })
 
         toolWindow.contentManager.addContent(content)
+        // Start immediately in case the tool window is already visible when content is added
         watcher.start()
     }
 }

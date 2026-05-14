@@ -12,6 +12,8 @@ import javax.swing.JPanel
 import javax.swing.tree.DefaultMutableTreeNode
 import javax.swing.tree.DefaultTreeCellRenderer
 import javax.swing.tree.DefaultTreeModel
+import javax.swing.tree.DefaultTreeSelectionModel
+import javax.swing.tree.TreePath
 import javax.swing.tree.TreeSelectionModel
 
 class TraceListPanel(private val onSelect: (File) -> Unit) : JPanel(BorderLayout()) {
@@ -24,6 +26,18 @@ class TraceListPanel(private val onSelect: (File) -> Unit) : JPanel(BorderLayout
         tree.isRootVisible = false
         tree.showsRootHandles = true
         tree.selectionModel.selectionMode = TreeSelectionModel.SINGLE_TREE_SELECTION
+        tree.selectionModel = object : DefaultTreeSelectionModel() {
+            override fun setSelectionPath(path: TreePath?) {
+                val node = path?.lastPathComponent as? DefaultMutableTreeNode
+                if (node?.userObject is ModuleHeader) return
+                super.setSelectionPath(path)
+            }
+            override fun addSelectionPath(path: TreePath?) {
+                val node = path?.lastPathComponent as? DefaultMutableTreeNode
+                if (node?.userObject is ModuleHeader) return
+                super.addSelectionPath(path)
+            }
+        }
         tree.cellRenderer = TraceTreeCellRenderer()
         tree.addTreeSelectionListener { e ->
             val node = e.path?.lastPathComponent as? DefaultMutableTreeNode ?: return@addTreeSelectionListener
