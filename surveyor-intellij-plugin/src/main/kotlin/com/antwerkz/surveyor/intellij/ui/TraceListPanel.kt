@@ -1,5 +1,6 @@
 package com.antwerkz.surveyor.intellij.ui
 
+import com.antwerkz.surveyor.intellij.OtlpJsonParser
 import com.intellij.ui.JBColor
 import com.intellij.ui.components.JBScrollPane
 import com.intellij.ui.treeStructure.Tree
@@ -32,15 +33,30 @@ class TraceListPanel(private val onSelect: (File) -> Unit) : JPanel(BorderLayout
         add(JBScrollPane(tree), BorderLayout.CENTER)
     }
 
-    fun refresh(files: List<File>) {
+    fun refresh(modules: Map<String?, List<File>>) {
         root.removeAllChildren()
 
-        if (files.isEmpty()) {
-            root.add(DefaultMutableTreeNode("No traces yet — run your tests"))
-            model.reload()
-            return
+        val singleModule = modules.size == 1 && modules.containsKey(null)
+
+        if (singleModule) {
+            populateClassNodes(root, modules[null] ?: emptyList())
+        } else {
+            modules.entries.sortedBy { it.key ?: "" }.forEach { (moduleName, files) ->
+                val moduleNode = DefaultMutableTreeNode(ModuleHeader(moduleName ?: ""))
+                populateClassNodes(moduleNode, files)
+                if (moduleNode.childCount > 0) root.add(moduleNode)
+            }
         }
 
+        if (root.childCount == 0) {
+            root.add(DefaultMutableTreeNode("No traces yet — run your tests"))
+        }
+
+        model.reload()
+        for (i in 0 until tree.rowCount) tree.expandRow(i)
+    }
+
+    private fun populateClassNodes(parent: DefaultMutableTreeNode, files: List<File>) {
         val byClass = files
             .filter { it.name != "surveyor-run.json" }
             .mapNotNull { file ->
@@ -54,37 +70,31 @@ class TraceListPanel(private val onSelect: (File) -> Unit) : JPanel(BorderLayout
             val simpleClass = fqcn.substringAfterLast('.')
             val classNode = DefaultMutableTreeNode(simpleClass)
             entries.sortedBy { it.third }.forEach { (file, _, method) ->
-                val duration = rootDuration(file)
-                classNode.add(DefaultMutableTreeNode(TraceLeaf(file, method, duration)))
+                classNode.add(DefaultMutableTreeNode(TraceLeaf(file, method, rootDuration(file))))
             }
-            root.add(classNode)
+            parent.add(classNode)
         }
 
         val runFile = files.firstOrNull { it.name == "surveyor-run.json" }
         if (runFile != null) {
-            root.add(DefaultMutableTreeNode(TraceLeaf(runFile, "surveyor-run", null)))
+            parent.add(DefaultMutableTreeNode(TraceLeaf(runFile, "surveyor-run", null)))
         }
-
-        model.reload()
-        for (i in 0 until tree.rowCount) tree.expandRow(i)
     }
 
     private fun parseFileName(file: File): Pair<String, String>? {
-        val base = file.nameWithoutExtension  // com.example.CalculatorTest.testAdd
+        val base = file.nameWithoutExtension
         val lastDot = base.lastIndexOf('.')
         if (lastDot < 0) return null
         return base.substring(0, lastDot) to base.substring(lastDot + 1)
     }
 
-    private fun rootDuration(file: File): Double? {
-        return try {
-            val roots = com.antwerkz.surveyor.intellij.OtlpJsonParser.parse(file)
-            roots.firstOrNull()?.durationMs
-        } catch (_: Exception) {
-            null
-        }
+    private fun rootDuration(file: File): Double? = try {
+        OtlpJsonParser.parse(file).firstOrNull()?.durationMs
+    } catch (_: Exception) {
+        null
     }
 
+    data class ModuleHeader(val name: String)
     data class TraceLeaf(val file: File, val label: String, val durationMs: Double?)
 
     private class TraceTreeCellRenderer : DefaultTreeCellRenderer() {
@@ -100,6 +110,12 @@ class TraceListPanel(private val onSelect: (File) -> Unit) : JPanel(BorderLayout
             super.getTreeCellRendererComponent(tree, value, selected, expanded, leaf, row, hasFocus)
             val node = value as? DefaultMutableTreeNode ?: return this
             when (val uo = node.userObject) {
+                is ModuleHeader -> {
+                    text = uo.name
+                    icon = null
+                    font = font.deriveFont(Font.BOLD)
+                    if (!selected) foreground = JBColor.foreground()
+                }
                 is TraceLeaf -> {
                     val dur = uo.durationMs?.let { "  %.0fms".format(it) } ?: ""
                     text = uo.label + dur
