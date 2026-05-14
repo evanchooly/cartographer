@@ -22,20 +22,25 @@ Two related enhancements:
 
 Reads the parent `pom.xml` and returns a list of `(folderName: String?, outputDir: File)` pairs.
 
+**Dependency:** `org.apache.maven:maven-model` added to `build.gradle.kts` of the IntelliJ
+plugin. Uses `MavenXpp3Reader` to parse the POM into a typed `Model` object — cleaner than
+raw DOM traversal and handles encoding edge cases automatically.
+
 Algorithm:
 
-1. Parse `pom.xml` with `javax.xml.parsers.DocumentBuilder` (already used by `readOutputDir`).
-2. Try `getElementsByTagName("subproject")` — use these entries if any exist (Maven 4 format).
-3. Else try `getElementsByTagName("module")` — use these entries (Maven 3 format).
-4. For each entry text value `folderName`:
+1. Parse `pom.xml` with `MavenXpp3Reader().read(FileReader(pom))` → `Model`.
+2. Try `model.subprojects` — use these entries if non-empty (Maven 4 format).
+3. Else try `model.modules` — use these entries (Maven 3 format).
+4. For each entry `folderName`:
    - Resolve `outputDir = File(projectRoot, "$folderName/target/surveyor")`.
    - Pair: `folderName to outputDir`.
-5. If neither element is found (single-module project):
+5. If both are empty (single-module project):
    - Return `listOf(null to readOutputDir(projectRoot))` — the `null` key signals no module
      wrapper in the UI.
 
 The existing `readOutputDir` is unchanged and continues to serve the single-module path and
-any other callers that need just one directory.
+any other callers that need just one directory. It may optionally be refactored internally to
+also use `MavenXpp3Reader` for consistency, but its signature and behaviour are unaffected.
 
 ### `TraceFileWatcher` — multi-directory
 
