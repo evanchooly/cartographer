@@ -2,7 +2,9 @@ package com.antwerkz.surveyor.intellij
 
 import org.apache.maven.model.io.xpp3.MavenXpp3Reader
 import org.codehaus.plexus.util.xml.Xpp3Dom
+import org.w3c.dom.Element
 import java.io.File
+import javax.xml.parsers.DocumentBuilderFactory
 
 object PomConfigReader {
 
@@ -33,24 +35,33 @@ object PomConfigReader {
             }
             // Maven 3 / Maven 4.0 <modules>
             val model = MavenXpp3Reader().read(pom.bufferedReader())
-            val modules = model.modules ?: emptyList()
+            val modules = model.modules ?: emptyList<String>()
             if (modules.isNotEmpty()) {
                 return modules.map { it to File(projectRoot, "$it/target/surveyor") }
             }
-            listOf(null to readOutputDir(projectRoot))
+            // Single-module: re-use the already-parsed model to find outputDir
+            val plugin = model.build?.plugins?.find {
+                it.groupId == "com.antwerkz" && it.artifactId == "surveyor-maven-plugin"
+            }
+            val outputDir = (plugin?.configuration as? Xpp3Dom)?.getChild("outputDir")?.value
+            listOf(null to if (outputDir.isNullOrBlank()) fallback(projectRoot) else File(projectRoot, outputDir))
         } catch (_: Exception) {
-            listOf(null to readOutputDir(projectRoot))
+            listOf(null to fallback(projectRoot))
         }
     }
 
     private fun domTagValues(pom: File, tagName: String): List<String> {
         return try {
-            val doc = javax.xml.parsers.DocumentBuilderFactory.newInstance()
-                .newDocumentBuilder().parse(pom)
+            val doc = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(pom)
             doc.documentElement.normalize()
-            val nodes = doc.getElementsByTagName(tagName)
+            val parent = doc.getElementsByTagName("${tagName}s").item(0) as? Element
+                ?: return emptyList()
+            val nodes = parent.childNodes
             (0 until nodes.length).mapNotNull {
-                nodes.item(it)?.textContent?.trim()?.takeIf { s -> s.isNotEmpty() }
+                val node = nodes.item(it)
+                if (node is Element && node.tagName == tagName)
+                    node.textContent?.trim()?.takeIf { s -> s.isNotEmpty() }
+                else null
             }
         } catch (_: Exception) {
             emptyList()
