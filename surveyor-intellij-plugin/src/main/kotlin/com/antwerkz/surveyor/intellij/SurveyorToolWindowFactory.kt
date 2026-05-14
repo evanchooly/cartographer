@@ -41,10 +41,11 @@ class SurveyorToolWindowFactory : ToolWindowFactory {
             .contentRoots.firstOrNull()?.let { File(it.path) }
             ?: project.basePath?.let { File(it) }
             ?: File(".")
-        val outputDir = PomConfigReader.readOutputDir(projectRoot)
 
-        val watcher = TraceFileWatcher(project, outputDir) { files ->
-            listPanel.refresh(files)
+        val modules = PomConfigReader.readModules(projectRoot)
+
+        val watcher = TraceFileWatcher(project, modules) { moduleFiles ->
+            listPanel.refresh(moduleFiles)
         }
 
         val rightPanel = JPanel(BorderLayout()).apply {
@@ -60,7 +61,6 @@ class SurveyorToolWindowFactory : ToolWindowFactory {
         val content = ContentFactory.getInstance()
             .createContent(splitter, "", false)
 
-        // Register listener BEFORE addContent so it fires if window is already visible
         splitter.addAncestorListener(object : AncestorListener {
             override fun ancestorAdded(event: AncestorEvent) = watcher.start()
             override fun ancestorRemoved(event: AncestorEvent) = watcher.stop()
@@ -68,7 +68,6 @@ class SurveyorToolWindowFactory : ToolWindowFactory {
         })
 
         toolWindow.contentManager.addContent(content)
-        // Start immediately in case the window is already visible
         watcher.start()
     }
 }
