@@ -1,12 +1,12 @@
 import org.jetbrains.intellij.platform.gradle.TestFrameworkType
 
 plugins {
-    id("org.jetbrains.intellij.platform") version "2.5.0"
+    id("org.jetbrains.intellij.platform") version "2.16.0"
     kotlin("jvm") version "2.3.20"
 }
 
 group = "com.antwerkz"
-version = "1.0-SNAPSHOT"
+version = "1.0.0-SNAPSHOT"
 
 repositories {
     mavenCentral()
@@ -17,7 +17,7 @@ repositories {
 
 dependencies {
     intellijPlatform {
-        intellijIdeaCommunity("2024.1")
+        intellijIdea("2025.3")
         bundledPlugin("com.intellij.java")
         testFramework(TestFrameworkType.Platform)
         testFramework(TestFrameworkType.Bundled)
@@ -28,4 +28,8 @@ dependencies {
 
 kotlin {
     jvmToolchain(17)
+}
+
+intellijPlatform {
+    buildSearchableOptions = false
 }
