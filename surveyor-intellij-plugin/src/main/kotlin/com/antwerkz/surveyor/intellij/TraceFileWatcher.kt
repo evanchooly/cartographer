@@ -2,6 +2,7 @@ package com.antwerkz.surveyor.intellij
 
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.openapi.vfs.VirtualFileManager
 import com.intellij.openapi.vfs.newvfs.BulkFileListener
 import com.intellij.openapi.vfs.newvfs.events.VFileEvent
@@ -21,8 +22,16 @@ class TraceFileWatcher(
     @Volatile
     private var connection: MessageBusConnection? = null
 
+    @Volatile
+    private var watchRequests: Set<LocalFileSystem.WatchRequest> = emptySet()
+
     fun start() {
         connection?.disconnect()
+        val lfs = LocalFileSystem.getInstance()
+        // target/ is excluded from VFS indexing in Maven projects; addRootsToWatch tells
+        // LocalFileSystem to monitor these paths anyway so BulkFileListener fires.
+        lfs.removeWatchedRoots(watchRequests)
+        watchRequests = lfs.addRootsToWatch(canonicalPaths.map { it.second }.toSet(), true)
         notifyFiles()
         connection = project.messageBus.connect(project).also { conn ->
             conn.subscribe(VirtualFileManager.VFS_CHANGES, object : BulkFileListener {
@@ -40,6 +49,8 @@ class TraceFileWatcher(
     fun stop() {
         connection?.disconnect()
         connection = null
+        LocalFileSystem.getInstance().removeWatchedRoots(watchRequests)
+        watchRequests = emptySet()
     }
 
     private fun notifyFiles() {
