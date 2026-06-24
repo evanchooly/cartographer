@@ -1,0 +1,17 @@
+<idea-plugin>
+    <id>com.antwerkz.cartographer</id>
+    <name>Cartographer</name>
+    <vendor>antwerkz</vendor>
+    <description>Visualizes Cartographer test trace output as a Jaeger-style waterfall.</description>
+
+    <depends>com.intellij.modules.platform</depends>
+    <depends>com.intellij.modules.java</depends>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <toolWindow
+            id="Cartographer"
+            anchor="bottom"
+            factoryClass="com.antwerkz.cartographer.intellij.CartographerToolWindowFactory"
+        />
+    </extensions>
+</idea-plugin>

@@ -1,8 +1,8 @@
-# Surveyor IntelliJ Plugin Implementation Plan
+# Cartographer IntelliJ Plugin Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Build a `surveyor-intellij-plugin` Gradle subproject that adds an IntelliJ IDEA bottom tool window showing per-test OTLP trace files in a grouped tree, rendering a Jaeger-style waterfall and span detail strip with source navigation.
+**Goal:** Build a `cartographer-intellij-plugin` Gradle subproject that adds an IntelliJ IDEA bottom tool window showing per-test OTLP trace files in a grouped tree, rendering a Jaeger-style waterfall and span detail strip with source navigation.
 
 **Architecture:** A Gradle subproject (independent from the Maven build) using IntelliJ Platform Gradle Plugin v2. The tool window wires eight components together: a file watcher feeds a grouped tree list; single-clicking a trace parses its OTLP JSON into a `SpanNode` tree and loads it into a custom-painted waterfall panel; clicking a span shows a detail strip whose "Go to source" button uses `JavaPsiFacade` to navigate the editor.
 
@@ -14,10 +14,10 @@
 
 | Action | Path | Responsibility |
 |--------|------|----------------|
-| Create | `surveyor-intellij-plugin/settings.gradle.kts` | Project name + plugin management repos |
-| Create | `surveyor-intellij-plugin/build.gradle.kts` | IntelliJ Platform Gradle Plugin v2 config |
-| Create | `surveyor-intellij-plugin/gradle/wrapper/gradle-wrapper.properties` | Pin Gradle 8.8 |
-| Create | `surveyor-intellij-plugin/src/main/resources/META-INF/plugin.xml` | Tool window registration |
+| Create | `cartographer-intellij-plugin/settings.gradle.kts` | Project name + plugin management repos |
+| Create | `cartographer-intellij-plugin/build.gradle.kts` | IntelliJ Platform Gradle Plugin v2 config |
+| Create | `cartographer-intellij-plugin/gradle/wrapper/gradle-wrapper.properties` | Pin Gradle 8.8 |
+| Create | `cartographer-intellij-plugin/src/main/resources/META-INF/plugin.xml` | Tool window registration |
 | Create | `…/intellij/model/SpanNode.kt` | Immutable span data + tree |
 | Create | `…/intellij/OtlpJsonParser.kt` | OTLP JSON → SpanNode tree (uses Gson) |
 | Create | `…/intellij/PomConfigReader.kt` | Extract `<outputDir>` from `pom.xml` |
@@ -26,7 +26,7 @@
 | Create | `…/intellij/ui/WaterfallPanel.kt` | Custom `JPanel` span-bar rendering |
 | Create | `…/intellij/ui/SpanDetailPanel.kt` | Detail strip + "Go to source" button |
 | Create | `…/intellij/SourceNavigator.kt` | `JavaPsiFacade` → editor navigation |
-| Create | `…/intellij/SurveyorToolWindowFactory.kt` | Wires all components, `ToolWindowFactory` |
+| Create | `…/intellij/CartographerToolWindowFactory.kt` | Wires all components, `ToolWindowFactory` |
 | Create | `…/test/kotlin/…/OtlpJsonParserTest.kt` | Unit tests for parser |
 | Create | `…/test/kotlin/…/PomConfigReaderTest.kt` | Unit tests with sample pom.xml strings |
 | Create | `…/test/kotlin/…/SourceNavigatorTest.kt` | Light fixture test for PSI lookup |
@@ -38,17 +38,17 @@
 ### Task 1: Gradle scaffold
 
 **Files:**
-- Create: `surveyor-intellij-plugin/settings.gradle.kts`
-- Create: `surveyor-intellij-plugin/build.gradle.kts`
-- Create: `surveyor-intellij-plugin/gradle/wrapper/gradle-wrapper.properties`
-- Create: `surveyor-intellij-plugin/src/main/resources/META-INF/plugin.xml`
+- Create: `cartographer-intellij-plugin/settings.gradle.kts`
+- Create: `cartographer-intellij-plugin/build.gradle.kts`
+- Create: `cartographer-intellij-plugin/gradle/wrapper/gradle-wrapper.properties`
+- Create: `cartographer-intellij-plugin/src/main/resources/META-INF/plugin.xml`
 
 **Prerequisite:** Gradle 8.x must be installed (`gradle --version`).
 
 - [ ] **Step 1: Create `settings.gradle.kts`**
 
 ```kotlin
-rootProject.name = "surveyor-intellij-plugin"
+rootProject.name = "cartographer-intellij-plugin"
 
 pluginManagement {
     repositories {
@@ -103,7 +103,7 @@ zipStorePath=wrapper/dists
 
 - [ ] **Step 4: Generate the Gradle wrapper scripts**
 
-Run in `surveyor-intellij-plugin/`:
+Run in `cartographer-intellij-plugin/`:
 ```
 gradle wrapper --gradle-version 8.8
 ```
@@ -114,19 +114,19 @@ Expected: `gradlew`, `gradlew.bat`, and `gradle/wrapper/gradle-wrapper.jar` crea
 
 ```xml
 <idea-plugin>
-    <id>com.antwerkz.surveyor</id>
-    <name>Surveyor</name>
+    <id>com.antwerkz.cartographer</id>
+    <name>Cartographer</name>
     <vendor>antwerkz</vendor>
-    <description>Visualizes Surveyor test trace output as a Jaeger-style waterfall.</description>
+    <description>Visualizes Cartographer test trace output as a Jaeger-style waterfall.</description>
 
     <depends>com.intellij.modules.platform</depends>
     <depends>com.intellij.modules.java</depends>
 
     <extensions defaultExtensionNs="com.intellij">
         <toolWindow
-            id="Surveyor"
+            id="Cartographer"
             anchor="bottom"
-            factoryClass="com.antwerkz.surveyor.intellij.SurveyorToolWindowFactory"
+            factoryClass="com.antwerkz.cartographer.intellij.CartographerToolWindowFactory"
         />
     </extensions>
 </idea-plugin>
@@ -134,7 +134,7 @@ Expected: `gradlew`, `gradlew.bat`, and `gradle/wrapper/gradle-wrapper.jar` crea
 
 - [ ] **Step 6: Verify the build compiles**
 
-Run in `surveyor-intellij-plugin/`:
+Run in `cartographer-intellij-plugin/`:
 ```
 ./gradlew compileKotlin
 ```
@@ -144,8 +144,8 @@ Expected: `BUILD SUCCESSFUL`. No source files yet; the task should succeed with 
 - [ ] **Step 7: Commit**
 
 ```bash
-git add surveyor-intellij-plugin/
-git commit -m "feat: scaffold surveyor-intellij-plugin Gradle project"
+git add cartographer-intellij-plugin/
+git commit -m "feat: scaffold cartographer-intellij-plugin Gradle project"
 ```
 
 ---
@@ -153,12 +153,12 @@ git commit -m "feat: scaffold surveyor-intellij-plugin Gradle project"
 ### Task 2: SpanNode model
 
 **Files:**
-- Create: `surveyor-intellij-plugin/src/main/kotlin/com/antwerkz/surveyor/intellij/model/SpanNode.kt`
+- Create: `cartographer-intellij-plugin/src/main/kotlin/com/antwerkz/cartographer/intellij/model/SpanNode.kt`
 
 - [ ] **Step 1: Create `SpanNode.kt`**
 
 ```kotlin
-package com.antwerkz.surveyor.intellij.model
+package com.antwerkz.cartographer.intellij.model
 
 data class SpanNode(
     val spanId: String,
@@ -193,7 +193,7 @@ Expected: `BUILD SUCCESSFUL`.
 - [ ] **Step 3: Commit**
 
 ```bash
-git add surveyor-intellij-plugin/src/main/kotlin/com/antwerkz/surveyor/intellij/model/
+git add cartographer-intellij-plugin/src/main/kotlin/com/antwerkz/cartographer/intellij/model/
 git commit -m "feat: add SpanNode model"
 ```
 
@@ -202,10 +202,10 @@ git commit -m "feat: add SpanNode model"
 ### Task 3: OtlpJsonParser
 
 **Files:**
-- Create: `surveyor-intellij-plugin/src/main/kotlin/com/antwerkz/surveyor/intellij/OtlpJsonParser.kt`
-- Create: `surveyor-intellij-plugin/src/test/kotlin/com/antwerkz/surveyor/intellij/OtlpJsonParserTest.kt`
-- Create: `surveyor-intellij-plugin/src/test/resources/greeter-trace.json`
-- Create: `surveyor-intellij-plugin/src/test/resources/single-span-trace.json`
+- Create: `cartographer-intellij-plugin/src/main/kotlin/com/antwerkz/cartographer/intellij/OtlpJsonParser.kt`
+- Create: `cartographer-intellij-plugin/src/test/kotlin/com/antwerkz/cartographer/intellij/OtlpJsonParserTest.kt`
+- Create: `cartographer-intellij-plugin/src/test/resources/greeter-trace.json`
+- Create: `cartographer-intellij-plugin/src/test/resources/single-span-trace.json`
 
 The actual OTLP JSON format (from the IT test output) has:
 - `resourceSpans[].scopeSpans[].spans[]`
@@ -283,9 +283,9 @@ The actual OTLP JSON format (from the IT test output) has:
 - [ ] **Step 3: Write the failing test**
 
 ```kotlin
-package com.antwerkz.surveyor.intellij
+package com.antwerkz.cartographer.intellij
 
-import com.antwerkz.surveyor.intellij.model.SpanNode
+import com.antwerkz.cartographer.intellij.model.SpanNode
 import org.junit.Assert.*
 import org.junit.Test
 import java.io.File
@@ -368,9 +368,9 @@ Expected: FAIL — `OtlpJsonParser` does not exist yet.
 - [ ] **Step 5: Create `OtlpJsonParser.kt`**
 
 ```kotlin
-package com.antwerkz.surveyor.intellij
+package com.antwerkz.cartographer.intellij
 
-import com.antwerkz.surveyor.intellij.model.SpanNode
+import com.antwerkz.cartographer.intellij.model.SpanNode
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 import java.io.File
@@ -463,7 +463,7 @@ Expected: All 7 tests PASS.
 - [ ] **Step 7: Commit**
 
 ```bash
-git add surveyor-intellij-plugin/src/
+git add cartographer-intellij-plugin/src/
 git commit -m "feat: add OtlpJsonParser with tests"
 ```
 
@@ -472,13 +472,13 @@ git commit -m "feat: add OtlpJsonParser with tests"
 ### Task 4: PomConfigReader
 
 **Files:**
-- Create: `surveyor-intellij-plugin/src/main/kotlin/com/antwerkz/surveyor/intellij/PomConfigReader.kt`
-- Create: `surveyor-intellij-plugin/src/test/kotlin/com/antwerkz/surveyor/intellij/PomConfigReaderTest.kt`
+- Create: `cartographer-intellij-plugin/src/main/kotlin/com/antwerkz/cartographer/intellij/PomConfigReader.kt`
+- Create: `cartographer-intellij-plugin/src/test/kotlin/com/antwerkz/cartographer/intellij/PomConfigReaderTest.kt`
 
 - [ ] **Step 1: Write the failing test**
 
 ```kotlin
-package com.antwerkz.surveyor.intellij
+package com.antwerkz.cartographer.intellij
 
 import org.junit.Assert.assertEquals
 import org.junit.Rule
@@ -500,7 +500,7 @@ class PomConfigReaderTest {
                     <plugins>
                       <plugin>
                         <groupId>com.antwerkz</groupId>
-                        <artifactId>surveyor-maven-plugin</artifactId>
+                        <artifactId>cartographer-maven-plugin</artifactId>
                         <configuration>
                           <outputDir>custom/traces</outputDir>
                         </configuration>
@@ -515,7 +515,7 @@ class PomConfigReaderTest {
     }
 
     @Test
-    fun `falls back to target-surveyor when plugin present but no outputDir`() {
+    fun `falls back to target-cartographer when plugin present but no outputDir`() {
         val pom = tmp.newFile("pom.xml").also {
             it.writeText("""
                 <project>
@@ -523,7 +523,7 @@ class PomConfigReaderTest {
                     <plugins>
                       <plugin>
                         <groupId>com.antwerkz</groupId>
-                        <artifactId>surveyor-maven-plugin</artifactId>
+                        <artifactId>cartographer-maven-plugin</artifactId>
                       </plugin>
                     </plugins>
                   </build>
@@ -531,22 +531,22 @@ class PomConfigReaderTest {
             """.trimIndent())
         }
         val result = PomConfigReader.readOutputDir(pom.parentFile)
-        assertEquals(File(pom.parentFile, "target/surveyor"), result)
+        assertEquals(File(pom.parentFile, "target/cartographer"), result)
     }
 
     @Test
-    fun `falls back to target-surveyor when no pom xml`() {
+    fun `falls back to target-cartographer when no pom xml`() {
         val result = PomConfigReader.readOutputDir(tmp.root)
-        assertEquals(File(tmp.root, "target/surveyor"), result)
+        assertEquals(File(tmp.root, "target/cartographer"), result)
     }
 
     @Test
-    fun `falls back to target-surveyor when plugin absent`() {
+    fun `falls back to target-cartographer when plugin absent`() {
         val pom = tmp.newFile("pom.xml").also {
             it.writeText("<project><build><plugins></plugins></build></project>")
         }
         val result = PomConfigReader.readOutputDir(pom.parentFile)
-        assertEquals(File(pom.parentFile, "target/surveyor"), result)
+        assertEquals(File(pom.parentFile, "target/cartographer"), result)
     }
 }
 ```
@@ -562,7 +562,7 @@ Expected: FAIL — `PomConfigReader` does not exist yet.
 - [ ] **Step 3: Create `PomConfigReader.kt`**
 
 ```kotlin
-package com.antwerkz.surveyor.intellij
+package com.antwerkz.cartographer.intellij
 
 import org.w3c.dom.Element
 import java.io.File
@@ -584,7 +584,7 @@ object PomConfigReader {
                 val plugin = plugins.item(i) as? Element ?: continue
                 val groupId = plugin.getElementsByTagName("groupId").item(0)?.textContent ?: ""
                 val artifactId = plugin.getElementsByTagName("artifactId").item(0)?.textContent ?: ""
-                if (groupId == "com.antwerkz" && artifactId == "surveyor-maven-plugin") {
+                if (groupId == "com.antwerkz" && artifactId == "cartographer-maven-plugin") {
                     val outputDir = plugin.getElementsByTagName("outputDir").item(0)?.textContent
                     return if (outputDir.isNullOrBlank()) fallback(projectRoot)
                     else File(projectRoot, outputDir)
@@ -596,7 +596,7 @@ object PomConfigReader {
         }
     }
 
-    private fun fallback(projectRoot: File) = File(projectRoot, "target/surveyor")
+    private fun fallback(projectRoot: File) = File(projectRoot, "target/cartographer")
 }
 ```
 
@@ -611,7 +611,7 @@ Expected: All 4 tests PASS.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add surveyor-intellij-plugin/src/
+git add cartographer-intellij-plugin/src/
 git commit -m "feat: add PomConfigReader with tests"
 ```
 
@@ -620,14 +620,14 @@ git commit -m "feat: add PomConfigReader with tests"
 ### Task 5: TraceListPanel
 
 **Files:**
-- Create: `surveyor-intellij-plugin/src/main/kotlin/com/antwerkz/surveyor/intellij/ui/TraceListPanel.kt`
+- Create: `cartographer-intellij-plugin/src/main/kotlin/com/antwerkz/cartographer/intellij/ui/TraceListPanel.kt`
 
-The panel groups trace files by simple class name. Filenames follow `<fqcn>.<methodName>.json`, e.g. `com.example.CalculatorTest.testAdd.json`. `surveyor-run.json` is shown at the bottom, dimmed and italic.
+The panel groups trace files by simple class name. Filenames follow `<fqcn>.<methodName>.json`, e.g. `com.example.CalculatorTest.testAdd.json`. `cartographer-run.json` is shown at the bottom, dimmed and italic.
 
 - [ ] **Step 1: Create `TraceListPanel.kt`**
 
 ```kotlin
-package com.antwerkz.surveyor.intellij.ui
+package com.antwerkz.cartographer.intellij.ui
 
 import com.intellij.ui.JBColor
 import com.intellij.ui.components.JBScrollPane
@@ -671,7 +671,7 @@ class TraceListPanel(private val onSelect: (File) -> Unit) : JPanel(BorderLayout
         }
 
         val byClass = files
-            .filter { it.name != "surveyor-run.json" }
+            .filter { it.name != "cartographer-run.json" }
             .mapNotNull { file ->
                 val (fqcn, method) = parseFileName(file) ?: return@mapNotNull null
                 Triple(file, fqcn, method)
@@ -689,9 +689,9 @@ class TraceListPanel(private val onSelect: (File) -> Unit) : JPanel(BorderLayout
             root.add(classNode)
         }
 
-        val runFile = files.firstOrNull { it.name == "surveyor-run.json" }
+        val runFile = files.firstOrNull { it.name == "cartographer-run.json" }
         if (runFile != null) {
-            root.add(DefaultMutableTreeNode(TraceLeaf(runFile, "surveyor-run", null)))
+            root.add(DefaultMutableTreeNode(TraceLeaf(runFile, "cartographer-run", null)))
         }
 
         model.reload()
@@ -707,7 +707,7 @@ class TraceListPanel(private val onSelect: (File) -> Unit) : JPanel(BorderLayout
 
     private fun rootDuration(file: File): Double? {
         return try {
-            val roots = com.antwerkz.surveyor.intellij.OtlpJsonParser.parse(file)
+            val roots = com.antwerkz.cartographer.intellij.OtlpJsonParser.parse(file)
             roots.firstOrNull()?.durationMs
         } catch (_: Exception) {
             null
@@ -732,7 +732,7 @@ class TraceListPanel(private val onSelect: (File) -> Unit) : JPanel(BorderLayout
                 is TraceLeaf -> {
                     val dur = uo.durationMs?.let { "  %.0fms".format(it) } ?: ""
                     text = uo.label + dur
-                    if (uo.file.name == "surveyor-run.json") {
+                    if (uo.file.name == "cartographer-run.json") {
                         foreground = JBColor.GRAY
                         font = font.deriveFont(Font.ITALIC)
                     }
@@ -761,7 +761,7 @@ Expected: `BUILD SUCCESSFUL`.
 - [ ] **Step 3: Commit**
 
 ```bash
-git add surveyor-intellij-plugin/src/main/kotlin/com/antwerkz/surveyor/intellij/ui/TraceListPanel.kt
+git add cartographer-intellij-plugin/src/main/kotlin/com/antwerkz/cartographer/intellij/ui/TraceListPanel.kt
 git commit -m "feat: add TraceListPanel grouped JBTree"
 ```
 
@@ -770,12 +770,12 @@ git commit -m "feat: add TraceListPanel grouped JBTree"
 ### Task 6: TraceFileWatcher
 
 **Files:**
-- Create: `surveyor-intellij-plugin/src/main/kotlin/com/antwerkz/surveyor/intellij/TraceFileWatcher.kt`
+- Create: `cartographer-intellij-plugin/src/main/kotlin/com/antwerkz/cartographer/intellij/TraceFileWatcher.kt`
 
 - [ ] **Step 1: Create `TraceFileWatcher.kt`**
 
 ```kotlin
-package com.antwerkz.surveyor.intellij
+package com.antwerkz.cartographer.intellij
 
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.VirtualFileManager
@@ -836,7 +836,7 @@ Expected: `BUILD SUCCESSFUL`.
 - [ ] **Step 3: Commit**
 
 ```bash
-git add surveyor-intellij-plugin/src/main/kotlin/com/antwerkz/surveyor/intellij/TraceFileWatcher.kt
+git add cartographer-intellij-plugin/src/main/kotlin/com/antwerkz/cartographer/intellij/TraceFileWatcher.kt
 git commit -m "feat: add TraceFileWatcher VFS listener"
 ```
 
@@ -845,16 +845,16 @@ git commit -m "feat: add TraceFileWatcher VFS listener"
 ### Task 7: WaterfallPanel
 
 **Files:**
-- Create: `surveyor-intellij-plugin/src/main/kotlin/com/antwerkz/surveyor/intellij/ui/WaterfallPanel.kt`
+- Create: `cartographer-intellij-plugin/src/main/kotlin/com/antwerkz/cartographer/intellij/ui/WaterfallPanel.kt`
 
 Layout: fixed `LABEL_WIDTH=200px` label column (right-aligned), then bar area. Each bar: horizontal bar proportional to span duration against total trace time, pushed right by `depth * INDENT_PX`. Row height = 22px. Time axis header = 24px. Root span = blue (`#3d6b8e`), selected = amber (`#e8a838`), children = green (`#5e8e4d`).
 
 - [ ] **Step 1: Create `WaterfallPanel.kt`**
 
 ```kotlin
-package com.antwerkz.surveyor.intellij.ui
+package com.antwerkz.cartographer.intellij.ui
 
-import com.antwerkz.surveyor.intellij.model.SpanNode
+import com.antwerkz.cartographer.intellij.model.SpanNode
 import com.intellij.ui.JBColor
 import com.intellij.ui.components.JBScrollPane
 import java.awt.*
@@ -997,7 +997,7 @@ Expected: `BUILD SUCCESSFUL`.
 - [ ] **Step 3: Commit**
 
 ```bash
-git add surveyor-intellij-plugin/src/main/kotlin/com/antwerkz/surveyor/intellij/ui/WaterfallPanel.kt
+git add cartographer-intellij-plugin/src/main/kotlin/com/antwerkz/cartographer/intellij/ui/WaterfallPanel.kt
 git commit -m "feat: add WaterfallPanel span-bar renderer"
 ```
 
@@ -1006,16 +1006,16 @@ git commit -m "feat: add WaterfallPanel span-bar renderer"
 ### Task 8: SpanDetailPanel
 
 **Files:**
-- Create: `surveyor-intellij-plugin/src/main/kotlin/com/antwerkz/surveyor/intellij/ui/SpanDetailPanel.kt`
+- Create: `cartographer-intellij-plugin/src/main/kotlin/com/antwerkz/cartographer/intellij/ui/SpanDetailPanel.kt`
 
 A fixed-height strip pinned below the waterfall. Hidden when nothing is selected. Shows: amber span name, duration, argument attributes (if any), and a "→ Go to source" button.
 
 - [ ] **Step 1: Create `SpanDetailPanel.kt`**
 
 ```kotlin
-package com.antwerkz.surveyor.intellij.ui
+package com.antwerkz.cartographer.intellij.ui
 
-import com.antwerkz.surveyor.intellij.model.SpanNode
+import com.antwerkz.cartographer.intellij.model.SpanNode
 import com.intellij.ui.JBColor
 import java.awt.BorderLayout
 import java.awt.Color
@@ -1083,7 +1083,7 @@ Expected: `BUILD SUCCESSFUL`.
 - [ ] **Step 3: Commit**
 
 ```bash
-git add surveyor-intellij-plugin/src/main/kotlin/com/antwerkz/surveyor/intellij/ui/SpanDetailPanel.kt
+git add cartographer-intellij-plugin/src/main/kotlin/com/antwerkz/cartographer/intellij/ui/SpanDetailPanel.kt
 git commit -m "feat: add SpanDetailPanel with Go to source button"
 ```
 
@@ -1092,15 +1092,15 @@ git commit -m "feat: add SpanDetailPanel with Go to source button"
 ### Task 9: SourceNavigator
 
 **Files:**
-- Create: `surveyor-intellij-plugin/src/main/kotlin/com/antwerkz/surveyor/intellij/SourceNavigator.kt`
-- Create: `surveyor-intellij-plugin/src/test/kotlin/com/antwerkz/surveyor/intellij/SourceNavigatorTest.kt`
+- Create: `cartographer-intellij-plugin/src/main/kotlin/com/antwerkz/cartographer/intellij/SourceNavigator.kt`
+- Create: `cartographer-intellij-plugin/src/test/kotlin/com/antwerkz/cartographer/intellij/SourceNavigatorTest.kt`
 
 Algorithm: split span name on last `.` → `className` + `methodName`. Use `JavaPsiFacade` to find the `PsiClass`, then `findMethodsByName` or `constructors`. Navigate with `navigate(true)`. Show `HintManager` balloon if class not found.
 
 - [ ] **Step 1: Write the failing test**
 
 ```kotlin
-package com.antwerkz.surveyor.intellij
+package com.antwerkz.cartographer.intellij
 
 import com.intellij.testFramework.fixtures.LightJavaCodeInsightFixtureTestCase
 
@@ -1147,7 +1147,7 @@ Expected: FAIL — `SourceNavigator` does not exist yet.
 - [ ] **Step 3: Create `SourceNavigator.kt`**
 
 ```kotlin
-package com.antwerkz.surveyor.intellij
+package com.antwerkz.cartographer.intellij
 
 import com.intellij.codeInsight.hint.HintManager
 import com.intellij.openapi.application.ApplicationManager
@@ -1200,27 +1200,27 @@ Expected: All 3 tests PASS.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add surveyor-intellij-plugin/src/
+git add cartographer-intellij-plugin/src/
 git commit -m "feat: add SourceNavigator with PSI integration test"
 ```
 
 ---
 
-### Task 10: SurveyorToolWindowFactory — wire everything together
+### Task 10: CartographerToolWindowFactory — wire everything together
 
 **Files:**
-- Create: `surveyor-intellij-plugin/src/main/kotlin/com/antwerkz/surveyor/intellij/SurveyorToolWindowFactory.kt`
+- Create: `cartographer-intellij-plugin/src/main/kotlin/com/antwerkz/cartographer/intellij/CartographerToolWindowFactory.kt`
 
 The factory creates a `JBSplitter` (horizontal, 25% left / 75% right) with `TraceListPanel` on the left and a `BorderLayout` panel on the right containing `WaterfallPanel` (center) and `SpanDetailPanel` (south). `TraceFileWatcher` is started when the window is shown and stopped when hidden.
 
-- [ ] **Step 1: Create `SurveyorToolWindowFactory.kt`**
+- [ ] **Step 1: Create `CartographerToolWindowFactory.kt`**
 
 ```kotlin
-package com.antwerkz.surveyor.intellij
+package com.antwerkz.cartographer.intellij
 
-import com.antwerkz.surveyor.intellij.ui.SpanDetailPanel
-import com.antwerkz.surveyor.intellij.ui.TraceListPanel
-import com.antwerkz.surveyor.intellij.ui.WaterfallPanel
+import com.antwerkz.cartographer.intellij.ui.SpanDetailPanel
+import com.antwerkz.cartographer.intellij.ui.TraceListPanel
+import com.antwerkz.cartographer.intellij.ui.WaterfallPanel
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.wm.ToolWindow
 import com.intellij.openapi.wm.ToolWindowFactory
@@ -1233,7 +1233,7 @@ import javax.swing.JLabel
 import javax.swing.JPanel
 import javax.swing.SwingConstants
 
-class SurveyorToolWindowFactory : ToolWindowFactory {
+class CartographerToolWindowFactory : ToolWindowFactory {
 
     override fun createToolWindowContent(project: Project, toolWindow: ToolWindow) {
         val detailPanel = SpanDetailPanel { span ->
@@ -1317,19 +1317,19 @@ Expected: All tests PASS.
 - [ ] **Step 4: Commit**
 
 ```bash
-git add surveyor-intellij-plugin/src/main/kotlin/com/antwerkz/surveyor/intellij/SurveyorToolWindowFactory.kt
-git commit -m "feat: add SurveyorToolWindowFactory wiring all UI components"
+git add cartographer-intellij-plugin/src/main/kotlin/com/antwerkz/cartographer/intellij/CartographerToolWindowFactory.kt
+git commit -m "feat: add CartographerToolWindowFactory wiring all UI components"
 ```
 
 ---
 
 ### Task 11: Manual verification with runIde
 
-**Prerequisite:** The `surveyor-maven-plugin` integration tests must have been run at least once so that `surveyor-maven-plugin/target/it/basic-test/target/surveyor/` contains trace JSON files.
+**Prerequisite:** The `cartographer-maven-plugin` integration tests must have been run at least once so that `cartographer-maven-plugin/target/it/basic-test/target/cartographer/` contains trace JSON files.
 
 - [ ] **Step 1: Build the plugin**
 
-Run in `surveyor-intellij-plugin/`:
+Run in `cartographer-intellij-plugin/`:
 ```
 ./gradlew buildPlugin
 ```
@@ -1342,17 +1342,17 @@ Expected: `BUILD SUCCESSFUL`. Plugin zip created under `build/distributions/`.
 ./gradlew runIde
 ```
 
-Expected: IntelliJ IDEA opens with the Surveyor plugin loaded.
+Expected: IntelliJ IDEA opens with the Cartographer plugin loaded.
 
 - [ ] **Step 3: Open the basic-test project in the sandboxed IDE**
 
-In the sandboxed IDEA, open `surveyor-maven-plugin/src/it/basic-test/` as a project.
+In the sandboxed IDEA, open `cartographer-maven-plugin/src/it/basic-test/` as a project.
 
 - [ ] **Step 4: Verify tool window**
 
-1. Click "Surveyor" in the bottom stripe — the tool window opens.
+1. Click "Cartographer" in the bottom stripe — the tool window opens.
 2. The left pane shows `CalculatorTest` as a group with `testAdd` and `testMultiply` leaves.
-3. `surveyor-run` appears dimmed and italic below the groups.
+3. `cartographer-run` appears dimmed and italic below the groups.
 
 - [ ] **Step 5: Verify waterfall**
 
@@ -1373,18 +1373,18 @@ In the sandboxed IDEA, open `surveyor-maven-plugin/src/it/basic-test/` as a proj
 - [ ] **Step 8: Verify watcher**
 
 1. Run `mvn test` in the basic-test project from a terminal.
-2. Without restarting IDEA, new/updated traces appear in the Surveyor panel automatically.
+2. Without restarting IDEA, new/updated traces appear in the Cartographer panel automatically.
 
 - [ ] **Step 9: Verify collapse/expand**
 
-1. Collapse the Surveyor tool window.
+1. Collapse the Cartographer tool window.
 2. Re-expand it — the trace list is refreshed and the previously selected trace is shown (if its file changed, the waterfall reloads).
 
 - [ ] **Step 10: Final commit**
 
 ```bash
-git add surveyor-intellij-plugin/
-git commit -m "feat: complete surveyor-intellij-plugin initial implementation"
+git add cartographer-intellij-plugin/
+git commit -m "feat: complete cartographer-intellij-plugin initial implementation"
 ```
 
 ---

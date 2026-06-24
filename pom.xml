@@ -9,7 +9,7 @@
         <version>70</version>
     </parent>
 
-    <artifactId>surveyor</artifactId>
+    <artifactId>cartographer</artifactId>
     <version>1.0.0-SNAPSHOT</version>
     <packaging>pom</packaging>
 
@@ -64,8 +64,8 @@
     </dependencyManagement>
 
     <subprojects>
-        <subproject>surveyor-agent</subproject>
-        <subproject>surveyor-maven-plugin</subproject>
+        <subproject>cartographer-agent</subproject>
+        <subproject>cartographer-maven-plugin</subproject>
     </subprojects>
 
 </project>

@@ -4,7 +4,7 @@
 
 **Goal:** Add Maven multimodule awareness to the IntelliJ plugin (collapsible per-module sections, multi-directory watcher) and add a TestNG integration test project to verify the agent instruments TestNG `@Test` methods correctly.
 
-**Architecture:** `PomConfigReader` gains a `readModules()` method using `MavenXpp3Reader` (from `org.apache.maven:maven-model`) to read `<subprojects>` (Maven 4.1) or `<modules>` (Maven 3/4.0) into typed module lists. `TraceFileWatcher` is extended to watch one directory per module via a single `BulkFileListener`, emitting `Map<String?, List<File>>`. `TraceListPanel` wraps its existing class-group tree under per-module nodes when more than one module is present. `SurveyorToolWindowFactory` is re-wired to pass the new types through. A separate `testng-test` Maven IT project exercises the agent's existing TestNG annotation handling end-to-end.
+**Architecture:** `PomConfigReader` gains a `readModules()` method using `MavenXpp3Reader` (from `org.apache.maven:maven-model`) to read `<subprojects>` (Maven 4.1) or `<modules>` (Maven 3/4.0) into typed module lists. `TraceFileWatcher` is extended to watch one directory per module via a single `BulkFileListener`, emitting `Map<String?, List<File>>`. `TraceListPanel` wraps its existing class-group tree under per-module nodes when more than one module is present. `CartographerToolWindowFactory` is re-wired to pass the new types through. A separate `testng-test` Maven IT project exercises the agent's existing TestNG annotation handling end-to-end.
 
 **Tech Stack:** `org.apache.maven:maven-model:3.9.9` · `org.codehaus.plexus:plexus-utils` (transitive, provides `Xpp3Dom`) · IntelliJ VFS `BulkFileListener` · Kotlin · JUnit 4 (existing plugin test framework) · TestNG 7.10.2 (IT project only) · Maven Invoker Plugin
 
@@ -14,16 +14,16 @@
 
 | Action | Path | Responsibility |
 |--------|------|----------------|
-| Modify | `surveyor-intellij-plugin/build.gradle.kts` | Add `maven-model` dependency |
+| Modify | `cartographer-intellij-plugin/build.gradle.kts` | Add `maven-model` dependency |
 | Modify | `…/intellij/PomConfigReader.kt` | Refactor `readOutputDir` to use `MavenXpp3Reader`; add `readModules()` |
 | Modify | `…/intellij/TraceFileWatcher.kt` | Multi-directory constructor + listener |
 | Modify | `…/intellij/ui/TraceListPanel.kt` | `refresh(Map<String?, List<File>>)` with optional module grouping |
-| Modify | `…/intellij/SurveyorToolWindowFactory.kt` | Wire `readModules` → `TraceFileWatcher` → `TraceListPanel` |
+| Modify | `…/intellij/CartographerToolWindowFactory.kt` | Wire `readModules` → `TraceFileWatcher` → `TraceListPanel` |
 | Modify | `…/test/kotlin/…/PomConfigReaderTest.kt` | New `readModules` test cases |
-| Create | `surveyor-maven-plugin/src/it/testng-test/pom.xml` | TestNG IT project POM |
-| Create | `surveyor-maven-plugin/src/it/testng-test/src/main/java/com/example/Calculator.java` | Subject class |
-| Create | `surveyor-maven-plugin/src/it/testng-test/src/test/java/com/example/CalculatorTest.java` | TestNG test class |
-| Create | `surveyor-maven-plugin/src/it/testng-test/verify.groovy` | Assert trace files exist |
+| Create | `cartographer-maven-plugin/src/it/testng-test/pom.xml` | TestNG IT project POM |
+| Create | `cartographer-maven-plugin/src/it/testng-test/src/main/java/com/example/Calculator.java` | Subject class |
+| Create | `cartographer-maven-plugin/src/it/testng-test/src/test/java/com/example/CalculatorTest.java` | TestNG test class |
+| Create | `cartographer-maven-plugin/src/it/testng-test/verify.groovy` | Assert trace files exist |
 
 ---
 
@@ -34,8 +34,8 @@ Replaces the bare DOM parser in `readOutputDir` with `MavenXpp3Reader` for consi
 so the "does not confuse plugin dependency groupId" test remains valid and should still pass.
 
 **Files:**
-- Modify: `surveyor-intellij-plugin/build.gradle.kts`
-- Modify: `surveyor-intellij-plugin/src/main/kotlin/com/antwerkz/surveyor/intellij/PomConfigReader.kt`
+- Modify: `cartographer-intellij-plugin/build.gradle.kts`
+- Modify: `cartographer-intellij-plugin/src/main/kotlin/com/antwerkz/cartographer/intellij/PomConfigReader.kt`
 
 - [ ] **Step 1: Add `maven-model` to `build.gradle.kts`**
 
@@ -68,7 +68,7 @@ and `Xpp3Dom` (from `plexus-utils`, a transitive dependency of `maven-model`). B
 fallback rules are identical to the previous version.
 
 ```kotlin
-package com.antwerkz.surveyor.intellij
+package com.antwerkz.cartographer.intellij
 
 import org.apache.maven.model.io.xpp3.MavenXpp3Reader
 import org.codehaus.plexus.util.xml.Xpp3Dom
@@ -82,7 +82,7 @@ object PomConfigReader {
         return try {
             val model = MavenXpp3Reader().read(pom.bufferedReader())
             val plugin = model.build?.plugins?.find {
-                it.groupId == "com.antwerkz" && it.artifactId == "surveyor-maven-plugin"
+                it.groupId == "com.antwerkz" && it.artifactId == "cartographer-maven-plugin"
             } ?: return fallback(projectRoot)
             val outputDir = (plugin.configuration as? Xpp3Dom)?.getChild("outputDir")?.value
             if (outputDir.isNullOrBlank()) fallback(projectRoot) else File(projectRoot, outputDir)
@@ -99,13 +99,13 @@ object PomConfigReader {
             // so we read it from the DOM directly.
             val subprojects = domTagValues(pom, "subproject")
             if (subprojects.isNotEmpty()) {
-                return subprojects.map { it to File(projectRoot, "$it/target/surveyor") }
+                return subprojects.map { it to File(projectRoot, "$it/target/cartographer") }
             }
             // Maven 3 / Maven 4.0 <modules>
             val model = MavenXpp3Reader().read(pom.bufferedReader())
             val modules = model.modules ?: emptyList()
             if (modules.isNotEmpty()) {
-                return modules.map { it to File(projectRoot, "$it/target/surveyor") }
+                return modules.map { it to File(projectRoot, "$it/target/cartographer") }
             }
             listOf(null to readOutputDir(projectRoot))
         } catch (_: Exception) {
@@ -127,13 +127,13 @@ object PomConfigReader {
         }
     }
 
-    private fun fallback(projectRoot: File) = File(projectRoot, "target/surveyor")
+    private fun fallback(projectRoot: File) = File(projectRoot, "target/cartographer")
 }
 ```
 
 - [ ] **Step 3: Run existing `PomConfigReaderTest` to verify no regressions**
 
-Run in `surveyor-intellij-plugin/`:
+Run in `cartographer-intellij-plugin/`:
 ```
 ./gradlew test --tests "*.PomConfigReaderTest"
 ```
@@ -143,8 +143,8 @@ Expected: All 5 existing tests PASS.
 - [ ] **Step 4: Commit**
 
 ```bash
-git add surveyor-intellij-plugin/build.gradle.kts \
-        surveyor-intellij-plugin/src/main/kotlin/com/antwerkz/surveyor/intellij/PomConfigReader.kt
+git add cartographer-intellij-plugin/build.gradle.kts \
+        cartographer-intellij-plugin/src/main/kotlin/com/antwerkz/cartographer/intellij/PomConfigReader.kt
 git commit -m "feat: use MavenXpp3Reader in PomConfigReader, add readModules stub"
 ```
 
@@ -153,7 +153,7 @@ git commit -m "feat: use MavenXpp3Reader in PomConfigReader, add readModules stu
 ## Task 2: Test and implement `PomConfigReader.readModules()`
 
 **Files:**
-- Modify: `surveyor-intellij-plugin/src/test/kotlin/com/antwerkz/surveyor/intellij/PomConfigReaderTest.kt`
+- Modify: `cartographer-intellij-plugin/src/test/kotlin/com/antwerkz/cartographer/intellij/PomConfigReaderTest.kt`
 
 - [ ] **Step 1: Add failing tests for `readModules`**
 
@@ -168,7 +168,7 @@ Append these tests to `PomConfigReaderTest.kt` (inside the class, after existing
         val result = PomConfigReader.readModules(pom.parentFile)
         assertEquals(1, result.size)
         assertEquals(null, result[0].first)
-        assertEquals(File(pom.parentFile, "target/surveyor"), result[0].second)
+        assertEquals(File(pom.parentFile, "target/cartographer"), result[0].second)
     }
 
     @Test
@@ -185,8 +185,8 @@ Append these tests to `PomConfigReaderTest.kt` (inside the class, after existing
         }
         val result = PomConfigReader.readModules(pom.parentFile)
         assertEquals(2, result.size)
-        assertEquals("module-a" to File(pom.parentFile, "module-a/target/surveyor"), result[0])
-        assertEquals("module-b" to File(pom.parentFile, "module-b/target/surveyor"), result[1])
+        assertEquals("module-a" to File(pom.parentFile, "module-a/target/cartographer"), result[0])
+        assertEquals("module-b" to File(pom.parentFile, "module-b/target/cartographer"), result[1])
     }
 
     @Test
@@ -203,8 +203,8 @@ Append these tests to `PomConfigReaderTest.kt` (inside the class, after existing
         }
         val result = PomConfigReader.readModules(pom.parentFile)
         assertEquals(2, result.size)
-        assertEquals("service-a" to File(pom.parentFile, "service-a/target/surveyor"), result[0])
-        assertEquals("service-b" to File(pom.parentFile, "service-b/target/surveyor"), result[1])
+        assertEquals("service-a" to File(pom.parentFile, "service-a/target/cartographer"), result[0])
+        assertEquals("service-b" to File(pom.parentFile, "service-b/target/cartographer"), result[1])
     }
 
     @Test
@@ -255,7 +255,7 @@ Expected: All 10 tests PASS.
 - [ ] **Step 4: Commit**
 
 ```bash
-git add surveyor-intellij-plugin/src/test/kotlin/com/antwerkz/surveyor/intellij/PomConfigReaderTest.kt
+git add cartographer-intellij-plugin/src/test/kotlin/com/antwerkz/cartographer/intellij/PomConfigReaderTest.kt
 git commit -m "test: add readModules tests for Maven 3, Maven 4, and single-module"
 ```
 
@@ -264,12 +264,12 @@ git commit -m "test: add readModules tests for Maven 3, Maven 4, and single-modu
 ## Task 3: Update `TraceFileWatcher` for multi-directory
 
 **Files:**
-- Modify: `surveyor-intellij-plugin/src/main/kotlin/com/antwerkz/surveyor/intellij/TraceFileWatcher.kt`
+- Modify: `cartographer-intellij-plugin/src/main/kotlin/com/antwerkz/cartographer/intellij/TraceFileWatcher.kt`
 
 - [ ] **Step 1: Replace `TraceFileWatcher.kt`**
 
 ```kotlin
-package com.antwerkz.surveyor.intellij
+package com.antwerkz.cartographer.intellij
 
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.project.Project
@@ -334,12 +334,12 @@ class TraceFileWatcher(
 ./gradlew compileKotlin
 ```
 
-Expected: BUILD SUCCESSFUL. (`SurveyorToolWindowFactory` will have a compile error since it still passes the old signature — that's fixed in Task 5.)
+Expected: BUILD SUCCESSFUL. (`CartographerToolWindowFactory` will have a compile error since it still passes the old signature — that's fixed in Task 5.)
 
 - [ ] **Step 3: Commit**
 
 ```bash
-git add surveyor-intellij-plugin/src/main/kotlin/com/antwerkz/surveyor/intellij/TraceFileWatcher.kt
+git add cartographer-intellij-plugin/src/main/kotlin/com/antwerkz/cartographer/intellij/TraceFileWatcher.kt
 git commit -m "feat: extend TraceFileWatcher to watch multiple module directories"
 ```
 
@@ -348,20 +348,20 @@ git commit -m "feat: extend TraceFileWatcher to watch multiple module directorie
 ## Task 4: Update `TraceListPanel` for module-level grouping
 
 **Files:**
-- Modify: `surveyor-intellij-plugin/src/main/kotlin/com/antwerkz/surveyor/intellij/ui/TraceListPanel.kt`
+- Modify: `cartographer-intellij-plugin/src/main/kotlin/com/antwerkz/cartographer/intellij/ui/TraceListPanel.kt`
 
 - [ ] **Step 1: Replace `TraceListPanel.kt`**
 
 The key change: `refresh` now accepts `Map<String?, List<File>>`. When the map has only a
 single `null` key, the existing tree structure is built directly at root (no module node).
 When module names are present, each module gets its own collapsible parent node whose children
-are the existing class-group subtree. `surveyor-run.json` appears at the bottom of each
+are the existing class-group subtree. `cartographer-run.json` appears at the bottom of each
 module section (or at root for single-module).
 
 ```kotlin
-package com.antwerkz.surveyor.intellij.ui
+package com.antwerkz.cartographer.intellij.ui
 
-import com.antwerkz.surveyor.intellij.OtlpJsonParser
+import com.antwerkz.cartographer.intellij.OtlpJsonParser
 import com.intellij.ui.JBColor
 import com.intellij.ui.components.JBScrollPane
 import com.intellij.ui.treeStructure.Tree
@@ -419,7 +419,7 @@ class TraceListPanel(private val onSelect: (File) -> Unit) : JPanel(BorderLayout
 
     private fun populateClassNodes(parent: DefaultMutableTreeNode, files: List<File>) {
         val byClass = files
-            .filter { it.name != "surveyor-run.json" }
+            .filter { it.name != "cartographer-run.json" }
             .mapNotNull { file ->
                 val (fqcn, method) = parseFileName(file) ?: return@mapNotNull null
                 Triple(file, fqcn, method)
@@ -436,9 +436,9 @@ class TraceListPanel(private val onSelect: (File) -> Unit) : JPanel(BorderLayout
             parent.add(classNode)
         }
 
-        val runFile = files.firstOrNull { it.name == "surveyor-run.json" }
+        val runFile = files.firstOrNull { it.name == "cartographer-run.json" }
         if (runFile != null) {
-            parent.add(DefaultMutableTreeNode(TraceLeaf(runFile, "surveyor-run", null)))
+            parent.add(DefaultMutableTreeNode(TraceLeaf(runFile, "cartographer-run", null)))
         }
     }
 
@@ -480,7 +480,7 @@ class TraceListPanel(private val onSelect: (File) -> Unit) : JPanel(BorderLayout
                 is TraceLeaf -> {
                     val dur = uo.durationMs?.let { "  %.0fms".format(it) } ?: ""
                     text = uo.label + dur
-                    if (uo.file.name == "surveyor-run.json") {
+                    if (uo.file.name == "cartographer-run.json") {
                         if (!selected) foreground = JBColor.GRAY
                         font = font.deriveFont(Font.ITALIC)
                     }
@@ -509,25 +509,25 @@ Expected: BUILD SUCCESSFUL (factory still broken — fixed in Task 5).
 - [ ] **Step 3: Commit**
 
 ```bash
-git add surveyor-intellij-plugin/src/main/kotlin/com/antwerkz/surveyor/intellij/ui/TraceListPanel.kt
+git add cartographer-intellij-plugin/src/main/kotlin/com/antwerkz/cartographer/intellij/ui/TraceListPanel.kt
 git commit -m "feat: add module-level grouping to TraceListPanel"
 ```
 
 ---
 
-## Task 5: Update `SurveyorToolWindowFactory` wiring
+## Task 5: Update `CartographerToolWindowFactory` wiring
 
 **Files:**
-- Modify: `surveyor-intellij-plugin/src/main/kotlin/com/antwerkz/surveyor/intellij/SurveyorToolWindowFactory.kt`
+- Modify: `cartographer-intellij-plugin/src/main/kotlin/com/antwerkz/cartographer/intellij/CartographerToolWindowFactory.kt`
 
-- [ ] **Step 1: Replace `SurveyorToolWindowFactory.kt`**
+- [ ] **Step 1: Replace `CartographerToolWindowFactory.kt`**
 
 ```kotlin
-package com.antwerkz.surveyor.intellij
+package com.antwerkz.cartographer.intellij
 
-import com.antwerkz.surveyor.intellij.ui.SpanDetailPanel
-import com.antwerkz.surveyor.intellij.ui.TraceListPanel
-import com.antwerkz.surveyor.intellij.ui.WaterfallPanel
+import com.antwerkz.cartographer.intellij.ui.SpanDetailPanel
+import com.antwerkz.cartographer.intellij.ui.TraceListPanel
+import com.antwerkz.cartographer.intellij.ui.WaterfallPanel
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.roots.ProjectRootManager
@@ -541,7 +541,7 @@ import javax.swing.JPanel
 import javax.swing.event.AncestorEvent
 import javax.swing.event.AncestorListener
 
-class SurveyorToolWindowFactory : ToolWindowFactory {
+class CartographerToolWindowFactory : ToolWindowFactory {
 
     override fun createToolWindowContent(project: Project, toolWindow: ToolWindow) {
         val detailPanel = SpanDetailPanel { span ->
@@ -609,8 +609,8 @@ Expected: BUILD SUCCESSFUL. All tests pass.
 - [ ] **Step 3: Commit**
 
 ```bash
-git add surveyor-intellij-plugin/src/main/kotlin/com/antwerkz/surveyor/intellij/SurveyorToolWindowFactory.kt
-git commit -m "feat: wire multimodule support through SurveyorToolWindowFactory"
+git add cartographer-intellij-plugin/src/main/kotlin/com/antwerkz/cartographer/intellij/CartographerToolWindowFactory.kt
+git commit -m "feat: wire multimodule support through CartographerToolWindowFactory"
 ```
 
 ---
@@ -618,10 +618,10 @@ git commit -m "feat: wire multimodule support through SurveyorToolWindowFactory"
 ## Task 6: TestNG integration test project
 
 **Files:**
-- Create: `surveyor-maven-plugin/src/it/testng-test/pom.xml`
-- Create: `surveyor-maven-plugin/src/it/testng-test/src/main/java/com/example/Calculator.java`
-- Create: `surveyor-maven-plugin/src/it/testng-test/src/test/java/com/example/CalculatorTest.java`
-- Create: `surveyor-maven-plugin/src/it/testng-test/verify.groovy`
+- Create: `cartographer-maven-plugin/src/it/testng-test/pom.xml`
+- Create: `cartographer-maven-plugin/src/it/testng-test/src/main/java/com/example/Calculator.java`
+- Create: `cartographer-maven-plugin/src/it/testng-test/src/test/java/com/example/CalculatorTest.java`
+- Create: `cartographer-maven-plugin/src/it/testng-test/verify.groovy`
 
 - [ ] **Step 1: Create `pom.xml`**
 
@@ -649,7 +649,7 @@ git commit -m "feat: wire multimodule support through SurveyorToolWindowFactory"
         <plugins>
             <plugin>
                 <groupId>com.antwerkz</groupId>
-                <artifactId>surveyor-maven-plugin</artifactId>
+                <artifactId>cartographer-maven-plugin</artifactId>
                 <version>@project.version@</version>
                 <configuration>
                     <packages>
@@ -718,10 +718,10 @@ public class CalculatorTest {
 - [ ] **Step 4: Create `verify.groovy`**
 
 ```groovy
-def surveyorDir = new File(basedir, "target/surveyor")
-assert surveyorDir.exists() : "target/surveyor directory should exist"
+def cartographerDir = new File(basedir, "target/cartographer")
+assert cartographerDir.exists() : "target/cartographer directory should exist"
 
-def traceFiles = surveyorDir.listFiles { f -> f.name.endsWith(".json") && !f.name.startsWith("surveyor-run") }
+def traceFiles = cartographerDir.listFiles { f -> f.name.endsWith(".json") && !f.name.startsWith("cartographer-run") }
 assert traceFiles != null && traceFiles.length == 2 :
     "Expected 2 trace files (one per @Test), found: ${traceFiles?.length ?: 0}"
 
@@ -734,17 +734,17 @@ true
 
 - [ ] **Step 5: Run the IT suite to verify**
 
-Run from `surveyor-maven-plugin/`:
+Run from `cartographer-maven-plugin/`:
 ```
 mvn verify -Dinvoker.test=testng-test
 ```
 
-Expected: BUILD SUCCESS. `target/surveyor/` contains exactly 2 non-empty `.json` files.
+Expected: BUILD SUCCESS. `target/cartographer/` contains exactly 2 non-empty `.json` files.
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add surveyor-maven-plugin/src/it/testng-test/
+git add cartographer-maven-plugin/src/it/testng-test/
 git commit -m "feat: add TestNG integration test to verify per-test trace generation"
 ```
 
@@ -759,8 +759,8 @@ git commit -m "feat: add TestNG integration test to verify per-test trace genera
 - ✅ `TraceFileWatcher` multi-directory with single `BulkFileListener` — Task 3
 - ✅ `TraceListPanel` module sections; single-module renders as before — Task 4
 - ✅ Module nodes sorted alphabetically, not selectable — Task 4 (`sortedBy { it.key }`)
-- ✅ `surveyor-run.json` at bottom of each module section — Task 4 `populateClassNodes`
-- ✅ `SurveyorToolWindowFactory` re-wired — Task 5
+- ✅ `cartographer-run.json` at bottom of each module section — Task 4 `populateClassNodes`
+- ✅ `CartographerToolWindowFactory` re-wired — Task 5
 - ✅ `maven-model` `MavenXpp3Reader` used instead of bare DOM — Task 1
 - ✅ TestNG IT project with 2 test methods and `verify.groovy` assertion — Task 6
 

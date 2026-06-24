@@ -1,4 +1,4 @@
-# Surveyor — Multimodule Plugin Support & TestNG IT — Design Document
+# Cartographer — Multimodule Plugin Support & TestNG IT — Design Document
 
 Date: 2026-05-14
 
@@ -8,7 +8,7 @@ Two related enhancements:
 
 1. **Multimodule plugin support** — The IntelliJ plugin's file list gains top-level collapsible
    sections per Maven submodule. The watcher discovers and monitors each submodule's
-   `target/surveyor/` directory. Works transparently for single-module projects (no UI change).
+   `target/cartographer/` directory. Works transparently for single-module projects (no UI change).
 
 2. **TestNG integration test** — A new Maven IT project (`testng-test`) exercises the agent's
    existing `@org.testng.annotations.Test` annotation matching end-to-end, verifying that
@@ -32,7 +32,7 @@ Algorithm:
 2. Try `model.subprojects` — use these entries if non-empty (Maven 4 format).
 3. Else try `model.modules` — use these entries (Maven 3 format).
 4. For each entry `folderName`:
-   - Resolve `outputDir = File(projectRoot, "$folderName/target/surveyor")`.
+   - Resolve `outputDir = File(projectRoot, "$folderName/target/cartographer")`.
    - Pair: `folderName to outputDir`.
 5. If both are empty (single-module project):
    - Return `listOf(null to readOutputDir(projectRoot))` — the `null` key signals no module
@@ -69,17 +69,17 @@ Tree structure:
  │   └── …
  ├── module-b
  │   └── …
- └── surveyor-run       ← TraceLeaf, dimmed/italic; shown at bottom of each module
+ └── cartographer-run       ← TraceLeaf, dimmed/italic; shown at bottom of each module
                           (or at root level for single-module)
 ```
 
 - If `modules` has only a single `null` key, no module wrapper node is added — tree renders
   exactly as before.
 - Module nodes are sorted alphabetically by folder name. They are not selectable.
-- `surveyor-run.json`, if present, appears as a leaf at the bottom of its module section.
+- `cartographer-run.json`, if present, appears as a leaf at the bottom of its module section.
 - All existing class/method grouping and leaf rendering logic is unchanged.
 
-### `SurveyorToolWindowFactory` — wiring update
+### `CartographerToolWindowFactory` — wiring update
 
 Calls `PomConfigReader.readModules(projectRoot)` instead of `readOutputDir`.
 Passes the result to `TraceFileWatcher`. Forwards `Map<String?, List<File>>` from the
@@ -91,16 +91,16 @@ watcher to `TraceListPanel.refresh`.
 
 ### Location
 
-`surveyor-maven-plugin/src/it/testng-test/`
+`cartographer-maven-plugin/src/it/testng-test/`
 
 Mirrors the existing `basic-test` IT project structure.
 
 ### `pom.xml` (test project)
 
-- Parent: `com.antwerkz:surveyor-maven-plugin` (standard IT parent).
+- Parent: `com.antwerkz:cartographer-maven-plugin` (standard IT parent).
 - Dependency: `org.testng:testng:7.10.2` (test scope).
 - `maven-surefire-plugin` configured to use TestNG (no JUnit provider).
-- Surveyor plugin configured with `packages=com.example`, `captureArgs=true`.
+- Cartographer plugin configured with `packages=com.example`, `captureArgs=true`.
 
 ### Test class
 
@@ -124,7 +124,7 @@ Plus a minimal `Calculator.java` in `src/main/java/com/example/`.
 
 ### Verification (`invoker.properties` / `verify.groovy`)
 
-Checks that `target/surveyor/` contains at least two `.json` files after the build,
+Checks that `target/cartographer/` contains at least two `.json` files after the build,
 confirming per-test trace isolation works with TestNG's `@Test` annotation.
 
 ---
@@ -146,5 +146,5 @@ confirming per-test trace isolation works with TestNG's `@Test` annotation.
   both present (subprojects wins), neither present (single-module fallback).
 - **`TraceListPanel`** — existing rendering verified via `./gradlew runIde` manual check;
   module grouping confirmed by running against a real multimodule project.
-- **IT: `testng-test`** — `mvn verify` in `surveyor-maven-plugin/` runs the new IT project;
+- **IT: `testng-test`** — `mvn verify` in `cartographer-maven-plugin/` runs the new IT project;
   `verify.groovy` asserts two trace files exist.

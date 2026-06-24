@@ -1,10 +1,10 @@
-# Surveyor IntelliJ Plugin — Design Document
+# Cartographer IntelliJ Plugin — Design Document
 
 Date: 2026-05-13
 
 ## Overview
 
-A new `surveyor-intellij-plugin` module adds an IntelliJ IDEA tool window that watches
+A new `cartographer-intellij-plugin` module adds an IntelliJ IDEA tool window that watches
 the agent's trace output directory, shows recorded per-test traces in a grouped list, and
 renders a Jaeger-style waterfall view when a trace is selected. Clicking a span shows a
 detail strip with duration, captured arguments, and a "Go to source" button that opens
@@ -18,18 +18,18 @@ The plugin lives as a Gradle subproject inside the existing Maven repo. It is bu
 distributed independently from the Maven modules.
 
 ```
-surveyor/
+cartographer/
 ├── pom.xml                          ← Maven parent (unchanged)
-├── surveyor-agent/                  ← unchanged
-├── surveyor-maven-plugin/           ← unchanged
-└── surveyor-intellij-plugin/        ← NEW: Gradle project
+├── cartographer-agent/                  ← unchanged
+├── cartographer-maven-plugin/           ← unchanged
+└── cartographer-intellij-plugin/        ← NEW: Gradle project
     ├── build.gradle.kts             ← IntelliJ Platform Gradle Plugin v2
     ├── gradle/
     │   └── wrapper/                 ← Gradle wrapper
     ├── src/
     │   ├── main/
-    │   │   ├── kotlin/com/antwerkz/surveyor/intellij/
-    │   │   │   ├── SurveyorToolWindowFactory.kt
+    │   │   ├── kotlin/com/antwerkz/cartographer/intellij/
+    │   │   │   ├── CartographerToolWindowFactory.kt
     │   │   │   ├── PomConfigReader.kt
     │   │   │   ├── TraceFileWatcher.kt
     │   │   │   ├── OtlpJsonParser.kt
@@ -70,7 +70,7 @@ Traverses the XML tree looking for:
 ```xml
 <plugin>
   <groupId>com.antwerkz</groupId>
-  <artifactId>surveyor-maven-plugin</artifactId>
+  <artifactId>cartographer-maven-plugin</artifactId>
   <configuration>
     <outputDir>…</outputDir>
   </configuration>
@@ -78,7 +78,7 @@ Traverses the XML tree looking for:
 ```
 
 Returns the configured path resolved relative to the project root, or
-`${project.basedir}/target/surveyor/` as the fallback. Uses the JDK's built-in
+`${project.basedir}/target/cartographer/` as the fallback. Uses the JDK's built-in
 `javax.xml.parsers.DocumentBuilder` — no extra dependency.
 
 ---
@@ -93,7 +93,7 @@ Manages the VFS subscription lifecycle tied to the tool window's visibility:
 - **On tool window collapse:** unregisters the listener.
 - **On reopen:** re-scans the directory. If the currently selected file's last-modified
   timestamp has changed, re-parses and re-renders the waterfall for that file.
-- Emits change events to `SurveyorToolWindowFactory` via a simple listener interface.
+- Emits change events to `CartographerToolWindowFactory` via a simple listener interface.
 
 ---
 
@@ -143,7 +143,7 @@ data class SpanNode(
 
 ---
 
-### `SurveyorToolWindowFactory`
+### `CartographerToolWindowFactory`
 
 Registered in `plugin.xml` as a `ToolWindowFactory` anchored to the **bottom** stripe
 (anchor = `BOTTOM`). Creates a `JBSplitter` (vertical split, ~25% left / ~75% right)
@@ -170,7 +170,7 @@ Trace filenames follow the pattern `<fqcn>.<methodName>.json`
 
 - Group headers use the **simple class name** (`CalculatorTest`), sorted alphabetically.
 - Leaf nodes show the **method name** (`testAdd`), sorted alphabetically within the group.
-- `surveyor-run.json` appears at the **bottom**, outside any group, rendered dimmed/italic
+- `cartographer-run.json` appears at the **bottom**, outside any group, rendered dimmed/italic
   (it collects spans that fall outside a test root — typically class constructors fired
   before a `@Test` method starts).
 
@@ -236,9 +236,9 @@ Algorithm:
 
 ```
 Project opens
-  └─ SurveyorToolWindowFactory created (tool window registered, not yet visible)
+  └─ CartographerToolWindowFactory created (tool window registered, not yet visible)
 
-User expands Surveyor tool window
+User expands Cartographer tool window
   └─ PomConfigReader.read(project) → outputDir
   └─ TraceFileWatcher.start(outputDir)
        └─ Initial scan → existing .json files

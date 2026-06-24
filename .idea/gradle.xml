@@ -4,10 +4,10 @@
   <component name="GradleSettings">
     <option name="linkedExternalProjectsSettings">
       <GradleProjectSettings>
-        <option name="externalProjectPath" value="$PROJECT_DIR$/surveyor-intellij-plugin" />
+        <option name="externalProjectPath" value="$PROJECT_DIR$/cartographer-intellij-plugin" />
         <option name="modules">
           <set>
-            <option value="$PROJECT_DIR$/surveyor-intellij-plugin" />
+            <option value="$PROJECT_DIR$/cartographer-intellij-plugin" />
           </set>
         </option>
       </GradleProjectSettings>
