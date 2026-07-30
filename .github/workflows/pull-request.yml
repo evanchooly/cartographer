@@ -38,12 +38,6 @@ jobs:
         working-directory: cartographer-intellij-plugin
         run: ./gradlew buildPlugin
 
-      - name: Upload IntelliJ Plugin
-        uses: actions/upload-artifact@v4
-        with:
-          name: cartographer-intellij-plugin
-          path: cartographer-intellij-plugin/build/distributions/*.zip
-
   Automerge:
     if: ${{ github.actor == 'dependabot[bot]' }}
     name: Automerge dependabot PRs
