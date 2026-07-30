@@ -39,7 +39,7 @@
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>3.5.3</version>
                 <configuration>
-                    <argLine>${argLine}</argLine>
+                    <argLine>@{argLine}</argLine>
                 </configuration>
             </plugin>
         </plugins>
