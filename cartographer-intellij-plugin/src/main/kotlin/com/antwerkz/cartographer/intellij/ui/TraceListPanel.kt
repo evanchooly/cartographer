@@ -1,6 +1,7 @@
 package com.antwerkz.cartographer.intellij.ui
 
 import com.antwerkz.cartographer.intellij.OtlpJsonParser
+import com.intellij.openapi.application.ApplicationManager
 import com.intellij.ui.JBColor
 import com.intellij.ui.components.JBScrollPane
 import com.intellij.ui.treeStructure.Tree
@@ -48,16 +49,26 @@ class TraceListPanel(private val onSelect: (File) -> Unit) : JPanel(BorderLayout
     }
 
     fun refresh(modules: Map<String?, List<File>>) {
+        ApplicationManager.getApplication().executeOnPooledThread {
+            val durations: Map<File, Double?> = modules.values.flatten()
+                .associateWith { f ->
+                    try { OtlpJsonParser.parse(f).firstOrNull()?.durationMs } catch (_: Exception) { null }
+                }
+            ApplicationManager.getApplication().invokeLater { buildTree(modules, durations) }
+        }
+    }
+
+    private fun buildTree(modules: Map<String?, List<File>>, durations: Map<File, Double?>) {
         root.removeAllChildren()
 
         val singleModule = modules.size == 1 && modules.containsKey(null)
 
         if (singleModule) {
-            populateClassNodes(root, modules[null] ?: emptyList())
+            populateClassNodes(root, modules[null] ?: emptyList(), durations)
         } else {
             modules.entries.sortedBy { it.key ?: "" }.forEach { (moduleName, files) ->
                 val moduleNode = DefaultMutableTreeNode(ModuleHeader(moduleName ?: ""))
-                populateClassNodes(moduleNode, files)
+                populateClassNodes(moduleNode, files, durations)
                 if (moduleNode.childCount > 0) root.add(moduleNode)
             }
         }
@@ -70,7 +81,7 @@ class TraceListPanel(private val onSelect: (File) -> Unit) : JPanel(BorderLayout
         for (i in 0 until tree.rowCount) tree.expandRow(i)
     }
 
-    private fun populateClassNodes(parent: DefaultMutableTreeNode, files: List<File>) {
+    private fun populateClassNodes(parent: DefaultMutableTreeNode, files: List<File>, durations: Map<File, Double?>) {
         val byClass = files
             .filter { it.name != "cartographer-run.json" }
             .mapNotNull { file ->
@@ -84,7 +95,7 @@ class TraceListPanel(private val onSelect: (File) -> Unit) : JPanel(BorderLayout
             val simpleClass = fqcn.substringAfterLast('.')
             val classNode = DefaultMutableTreeNode(simpleClass)
             entries.sortedBy { it.third }.forEach { (file, _, method) ->
-                classNode.add(DefaultMutableTreeNode(TraceLeaf(file, method, rootDuration(file))))
+                classNode.add(DefaultMutableTreeNode(TraceLeaf(file, method, durations[file])))
             }
             parent.add(classNode)
         }
@@ -100,12 +111,6 @@ class TraceListPanel(private val onSelect: (File) -> Unit) : JPanel(BorderLayout
         val lastDot = base.lastIndexOf('.')
         if (lastDot < 0) return null
         return base.substring(0, lastDot) to base.substring(lastDot + 1)
-    }
-
-    private fun rootDuration(file: File): Double? = try {
-        OtlpJsonParser.parse(file).firstOrNull()?.durationMs
-    } catch (_: Exception) {
-        null
     }
 
     data class ModuleHeader(val name: String)

@@ -30,6 +30,9 @@ class CartographerMojo : AbstractMojo() {
     @Parameter(defaultValue = "256")
     var maxArgLength: Int = 256
 
+    @Parameter(defaultValue = "false", property = "cartographer.skip")
+    var skip: Boolean = false
+
     @Parameter(defaultValue = "\${plugin.artifacts}", readonly = true, required = true)
     lateinit var pluginArtifacts: List<Artifact>
 
@@ -37,6 +40,11 @@ class CartographerMojo : AbstractMojo() {
     lateinit var project: org.apache.maven.project.MavenProject
 
     override fun execute() {
+        if (skip) {
+            log.info("Cartographer instrumentation skipped")
+            return
+        }
+
         val agentJar = pluginArtifacts
             .firstOrNull { it.groupId == "com.antwerkz" && it.artifactId == "cartographer-agent" }
             ?.file

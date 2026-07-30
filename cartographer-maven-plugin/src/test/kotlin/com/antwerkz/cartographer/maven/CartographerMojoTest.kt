@@ -4,6 +4,7 @@ import org.apache.maven.artifact.Artifact
 import org.apache.maven.artifact.DefaultArtifact
 import org.apache.maven.artifact.handler.DefaultArtifactHandler
 import org.apache.maven.project.MavenProject
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
@@ -80,6 +81,13 @@ class CartographerMojoTest {
         mojo.execute()
         val argLine = project.properties.getProperty("argLine") ?: ""
         assertTrue(!argLine.contains("maxArgLength"), "should not include maxArgLength when default")
+    }
+
+    @Test
+    fun `skip leaves argLine unchanged`() {
+        mojo.skip = true
+        mojo.execute()
+        assertNull(project.properties.getProperty("argLine"))
     }
 
     @Test
