@@ -13,5 +13,16 @@
             anchor="bottom"
             factoryClass="com.antwerkz.cartographer.intellij.CartographerToolWindowFactory"
         />
+        <notificationGroup id="Cartographer" displayType="BALLOON" isLogByDefault="true"/>
     </extensions>
+
+    <actions>
+        <action id="com.antwerkz.cartographer.SetupCartographerAction"
+                class="com.antwerkz.cartographer.intellij.SetupCartographerAction"
+                text="Add Cartographer Profile"
+                description="Insert a Cartographer Maven profile into this pom.xml">
+            <add-to-group group-id="ProjectViewPopupMenu" anchor="last"/>
+            <add-to-group group-id="EditorPopupMenu" anchor="last"/>
+        </action>
+    </actions>
 </idea-plugin>

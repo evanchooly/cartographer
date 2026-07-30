@@ -1,7 +1,6 @@
 package com.antwerkz.cartographer.intellij
 
-import org.apache.maven.model.io.xpp3.MavenXpp3Reader
-import org.codehaus.plexus.util.xml.Xpp3Dom
+import org.apache.maven.model.v4.MavenStaxReader
 import org.w3c.dom.Element
 import java.io.File
 import javax.xml.parsers.DocumentBuilderFactory
@@ -12,11 +11,11 @@ object PomConfigReader {
         val pom = File(projectRoot, "pom.xml")
         if (!pom.exists()) return fallback(projectRoot)
         return try {
-            val model = MavenXpp3Reader().read(pom.bufferedReader())
+            val model = MavenStaxReader().read(pom.bufferedReader())
             val plugin = model.build?.plugins?.find {
                 it.groupId == "com.antwerkz" && it.artifactId == "cartographer-maven-plugin"
             } ?: return fallback(projectRoot)
-            val outputDir = (plugin.configuration as? Xpp3Dom)?.getChild("outputDir")?.value
+            val outputDir = plugin.configuration?.child("outputDir")?.value()
             if (outputDir.isNullOrBlank()) fallback(projectRoot) else File(projectRoot, outputDir)
         } catch (_: Exception) {
             fallback(projectRoot)
@@ -27,14 +26,13 @@ object PomConfigReader {
         val pom = File(projectRoot, "pom.xml")
         if (!pom.exists()) return listOf(null to readOutputDir(projectRoot))
         return try {
-            // Maven 4.1 <subprojects> — MavenXpp3Reader 3.x doesn't model this element,
-            // so we read it from the DOM directly.
+            // Maven 4.1 <subprojects> is not modelled by MavenStaxReader, so read it via DOM.
             val subprojects = domTagValues(pom, "subproject")
             if (subprojects.isNotEmpty()) {
                 return subprojects.map { it to File(projectRoot, "$it/target/cartographer") }
             }
             // Maven 3 / Maven 4.0 <modules>
-            val model = MavenXpp3Reader().read(pom.bufferedReader())
+            val model = MavenStaxReader().read(pom.bufferedReader())
             val modules = model.modules ?: emptyList()
             if (modules.isNotEmpty()) {
                 return modules.map { it to File(projectRoot, "$it/target/cartographer") }
@@ -43,7 +41,7 @@ object PomConfigReader {
             val plugin = model.build?.plugins?.find {
                 it.groupId == "com.antwerkz" && it.artifactId == "cartographer-maven-plugin"
             }
-            val outputDir = (plugin?.configuration as? Xpp3Dom)?.getChild("outputDir")?.value
+            val outputDir = plugin?.configuration?.child("outputDir")?.value()
             listOf(null to if (outputDir.isNullOrBlank()) fallback(projectRoot) else File(projectRoot, outputDir))
         } catch (_: Exception) {
             listOf(null to fallback(projectRoot))

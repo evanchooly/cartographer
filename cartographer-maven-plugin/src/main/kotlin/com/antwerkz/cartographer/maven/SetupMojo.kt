@@ -1,6 +1,6 @@
 package com.antwerkz.cartographer.maven
 
-import org.apache.maven.model.io.xpp3.MavenXpp3Reader
+import org.apache.maven.model.v4.MavenStaxReader
 import org.apache.maven.plugin.AbstractMojo
 import org.apache.maven.plugin.MojoExecutionException
 import org.apache.maven.plugins.annotations.Mojo
@@ -41,7 +41,7 @@ class SetupMojo : AbstractMojo() {
         }
 
         val model = try {
-            MavenXpp3Reader().read(pomFile.bufferedReader())
+            MavenStaxReader().read(pomFile.bufferedReader())
         } catch (e: Exception) {
             throw MojoExecutionException("Failed to parse ${pomFile.name}: ${e.message}", e)
         }

@@ -1,6 +1,6 @@
 package com.antwerkz.cartographer.maven
 
-import org.apache.maven.model.io.xpp3.MavenXpp3Reader
+import org.apache.maven.model.v4.MavenStaxReader
 import org.apache.maven.plugin.MojoExecutionException
 import org.junit.jupiter.api.Assertions.assertDoesNotThrow
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -199,7 +199,7 @@ class SetupMojoTest {
     fun `profile activation uses profile id as property name`() {
         val pom = minimalPom()
         mojo(pom) { packages = "com.example" }.execute()
-        val model = MavenXpp3Reader().read(pom.bufferedReader())
+        val model = MavenStaxReader().read(pom.bufferedReader())
         val profile = model.profiles.first { it.id == "cartographer" }
         assertEquals("cartographer", profile.activation.property.name)
     }
@@ -208,7 +208,7 @@ class SetupMojoTest {
     fun `generated pom remains valid xml`() {
         val pom = minimalPom()
         mojo(pom) { packages = "com.example" }.execute()
-        assertDoesNotThrow { MavenXpp3Reader().read(pom.bufferedReader()) }
+        assertDoesNotThrow { MavenStaxReader().read(pom.bufferedReader()) }
     }
 
     // ── optional config ────────────────────────────────────────────────────────
