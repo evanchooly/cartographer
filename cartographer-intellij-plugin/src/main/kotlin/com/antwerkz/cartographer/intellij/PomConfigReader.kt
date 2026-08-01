@@ -1,6 +1,6 @@
 package com.antwerkz.cartographer.intellij
 
-import org.apache.maven.model.v4.MavenStaxReader
+import org.w3c.dom.Document
 import org.w3c.dom.Element
 import java.io.File
 import javax.xml.parsers.DocumentBuilderFactory
@@ -11,11 +11,7 @@ object PomConfigReader {
         val pom = File(projectRoot, "pom.xml")
         if (!pom.exists()) return fallback(projectRoot)
         return try {
-            val model = MavenStaxReader().read(pom.bufferedReader())
-            val plugin = model.build?.plugins?.find {
-                it.groupId == "com.antwerkz" && it.artifactId == "cartographer-maven-plugin"
-            } ?: return fallback(projectRoot)
-            val outputDir = plugin.configuration?.child("outputDir")?.value()
+            val outputDir = findPluginConfig(parseDom(pom), "outputDir")
             if (outputDir.isNullOrBlank()) fallback(projectRoot) else File(projectRoot, outputDir)
         } catch (_: Exception) {
             fallback(projectRoot)
@@ -26,44 +22,73 @@ object PomConfigReader {
         val pom = File(projectRoot, "pom.xml")
         if (!pom.exists()) return listOf(null to readOutputDir(projectRoot))
         return try {
-            // Maven 4.1 <subprojects> is not modelled by MavenStaxReader, so read it via DOM.
-            val subprojects = domTagValues(pom, "subproject")
+            val doc = parseDom(pom)
+            val root = doc.documentElement
+
+            // Maven 4.1 <subprojects>/<subproject>
+            val subprojects = childTexts(root, "subprojects", "subproject")
             if (subprojects.isNotEmpty()) {
                 return subprojects.map { it to File(projectRoot, "$it/target/cartographer") }
             }
-            // Maven 3 / Maven 4.0 <modules>
-            val model = MavenStaxReader().read(pom.bufferedReader())
-            val modules = model.modules ?: emptyList()
+            // Maven 3 / Maven 4.0 <modules>/<module>
+            val modules = childTexts(root, "modules", "module")
             if (modules.isNotEmpty()) {
                 return modules.map { it to File(projectRoot, "$it/target/cartographer") }
             }
-            // Single-module: re-use the already-parsed model to find outputDir
-            val plugin = model.build?.plugins?.find {
-                it.groupId == "com.antwerkz" && it.artifactId == "cartographer-maven-plugin"
-            }
-            val outputDir = plugin?.configuration?.child("outputDir")?.value()
+            // Single-module: check for custom outputDir
+            val outputDir = findPluginConfig(doc, "outputDir")
             listOf(null to if (outputDir.isNullOrBlank()) fallback(projectRoot) else File(projectRoot, outputDir))
         } catch (_: Exception) {
             listOf(null to fallback(projectRoot))
         }
     }
 
-    private fun domTagValues(pom: File, tagName: String): List<String> {
-        return try {
-            val doc = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(pom)
-            doc.documentElement.normalize()
-            val parent = doc.getElementsByTagName("${tagName}s").item(0) as? Element
-                ?: return emptyList()
-            val nodes = parent.childNodes
-            (0 until nodes.length).mapNotNull {
-                val node = nodes.item(it)
-                if (node is Element && node.tagName == tagName)
-                    node.textContent?.trim()?.takeIf { s -> s.isNotEmpty() }
-                else null
-            }
-        } catch (_: Exception) {
-            emptyList()
+    internal fun packaging(pom: File): String =
+        try { parseDom(pom).documentElement.getElementsByTagName("packaging").item(0)?.textContent?.trim() ?: "jar" }
+        catch (_: Exception) { "jar" }
+
+    internal fun hasProfile(pom: File, profileId: String): Boolean =
+        try { profileIds(parseDom(pom)).contains(profileId) }
+        catch (_: Exception) { false }
+
+    private fun profileIds(doc: Document): Set<String> {
+        val result = mutableSetOf<String>()
+        val profiles = doc.getElementsByTagName("profile")
+        for (i in 0 until profiles.length) {
+            val id = (profiles.item(i) as? Element)
+                ?.getElementsByTagName("id")?.item(0)?.textContent?.trim()
+            if (id != null) result += id
         }
+        return result
+    }
+
+    private fun parseDom(pom: File): Document =
+        DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(pom)
+            .also { it.documentElement.normalize() }
+
+    private fun childTexts(root: Element, containerTag: String, childTag: String): List<String> {
+        val container = root.getElementsByTagName(containerTag).item(0) as? Element ?: return emptyList()
+        val nodes = container.childNodes
+        return (0 until nodes.length).mapNotNull { i ->
+            val node = nodes.item(i)
+            if (node is Element && node.tagName == childTag)
+                node.textContent?.trim()?.takeIf { it.isNotEmpty() }
+            else null
+        }
+    }
+
+    private fun findPluginConfig(doc: Document, key: String): String? {
+        val plugins = doc.getElementsByTagName("plugin")
+        for (i in 0 until plugins.length) {
+            val plugin = plugins.item(i) as? Element ?: continue
+            val groupId = plugin.getElementsByTagName("groupId").item(0)?.textContent?.trim()
+            val artifactId = plugin.getElementsByTagName("artifactId").item(0)?.textContent?.trim()
+            if (groupId == "com.antwerkz" && artifactId == "cartographer-maven-plugin") {
+                val config = plugin.getElementsByTagName("configuration").item(0) as? Element ?: continue
+                return config.getElementsByTagName(key).item(0)?.textContent?.trim()?.takeIf { it.isNotEmpty() }
+            }
+        }
+        return null
     }
 
     private fun fallback(projectRoot: File) = File(projectRoot, "target/cartographer")

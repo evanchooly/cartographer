@@ -10,7 +10,6 @@ import com.intellij.openapi.actionSystem.CommonDataKeys
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.extensions.PluginId
 import com.intellij.openapi.vfs.LocalFileSystem
-import org.apache.maven.model.v4.MavenStaxReader
 import java.io.File
 
 class SetupCartographerAction : AnAction() {
@@ -49,9 +48,9 @@ class SetupCartographerAction : AnAction() {
 
     /** Returns true if the profile was inserted, false if it already existed. */
     private fun doSetup(pomFile: File): Boolean {
-        val model = MavenStaxReader().read(pomFile.bufferedReader())
-        if (model.profiles.any { it.id == "cartographer" }) return false
-        insertProfile(pomFile, buildProfileXml(resolvePackages(pomFile, model.packaging ?: "jar")))
+        if (PomConfigReader.hasProfile(pomFile, "cartographer")) return false
+        val packaging = PomConfigReader.packaging(pomFile)
+        insertProfile(pomFile, buildProfileXml(resolvePackages(pomFile, packaging)))
         return true
     }
 
