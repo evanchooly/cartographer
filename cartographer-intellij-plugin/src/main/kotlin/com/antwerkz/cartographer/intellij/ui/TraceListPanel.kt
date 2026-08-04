@@ -2,6 +2,7 @@ package com.antwerkz.cartographer.intellij.ui
 
 import com.antwerkz.cartographer.intellij.OtlpJsonParser
 import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.diagnostic.Logger
 import com.intellij.ui.JBColor
 import com.intellij.ui.components.JBScrollPane
 import com.intellij.ui.treeStructure.Tree
@@ -18,6 +19,10 @@ import javax.swing.tree.TreePath
 import javax.swing.tree.TreeSelectionModel
 
 class TraceListPanel(private val onSelect: (File) -> Unit) : JPanel(BorderLayout()) {
+    companion object {
+        private val log = Logger.getInstance(TraceListPanel::class.java)
+    }
+
 
     private val root = DefaultMutableTreeNode("root")
     private val model = DefaultTreeModel(root)
@@ -52,7 +57,12 @@ class TraceListPanel(private val onSelect: (File) -> Unit) : JPanel(BorderLayout
         ApplicationManager.getApplication().executeOnPooledThread {
             val durations: Map<File, Double?> = modules.values.flatten()
                 .associateWith { f ->
-                    try { OtlpJsonParser.parse(f).firstOrNull()?.durationMs } catch (_: Exception) { null }
+                    try {
+                        OtlpJsonParser.parse(f).firstOrNull()?.durationMs
+                    } catch (e: Exception) {
+                        log.warn("Failed to parse ${f.name}", e)
+                        null
+                    }
                 }
             ApplicationManager.getApplication().invokeLater { buildTree(modules, durations) }
         }
@@ -85,7 +95,8 @@ class TraceListPanel(private val onSelect: (File) -> Unit) : JPanel(BorderLayout
         val byClass = files
             .filter { it.name != "cartographer-run.json" }
             .mapNotNull { file ->
-                val (fqcn, method) = parseFileName(file) ?: return@mapNotNull null
+                val parseFileName = parseFileName(file)
+                val (fqcn, method) = parseFileName ?: return@mapNotNull null
                 Triple(file, fqcn, method)
             }
             .groupBy { (_, fqcn, _) -> fqcn }

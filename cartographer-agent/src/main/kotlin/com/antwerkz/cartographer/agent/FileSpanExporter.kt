@@ -1,5 +1,6 @@
 package com.antwerkz.cartographer.agent
 
+import com.fasterxml.jackson.core.JsonFactory
 import io.opentelemetry.exporter.internal.otlp.traces.TraceRequestMarshaler
 import io.opentelemetry.sdk.common.CompletableResultCode
 import io.opentelemetry.sdk.trace.data.SpanData
@@ -32,8 +33,12 @@ class FileSpanExporter(
         val safeName = testNameSupplier().replace(Regex("[^a-zA-Z0-9._-]"), "_")
         val outFile = File(outputDir, "$safeName.json")
 
-        outFile.outputStream().use { stream ->
-            TraceRequestMarshaler.create(toWrite).writeJsonTo(stream)
+        outFile.bufferedWriter().use { writer ->
+            val generator = JsonFactory().createGenerator(writer).setPrettyPrinter(
+                com.fasterxml.jackson.core.util.DefaultPrettyPrinter()
+            )
+            TraceRequestMarshaler.create(toWrite).writeJsonToGenerator(generator)
+            generator.close()
         }
 
         return CompletableResultCode.ofSuccess()

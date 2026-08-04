@@ -5,7 +5,6 @@ import com.antwerkz.cartographer.intellij.ui.TraceListPanel
 import com.antwerkz.cartographer.intellij.ui.WaterfallPanel
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.project.Project
-import com.intellij.openapi.roots.ProjectRootManager
 import com.intellij.openapi.wm.ToolWindow
 import com.intellij.openapi.wm.ToolWindowFactory
 import com.intellij.ui.JBSplitter
@@ -37,14 +36,9 @@ class CartographerToolWindowFactory : ToolWindowFactory {
             }
         }
 
-        val projectRoot = ProjectRootManager.getInstance(project)
-            .contentRoots.firstOrNull()?.let { File(it.path) }
-            ?: project.basePath?.let { File(it) }
-            ?: File(".")
+        val projectRoot = project.basePath?.let { File(it) } ?: File(".")
 
-        val modules = PomConfigReader.readModules(projectRoot)
-
-        val watcher = TraceFileWatcher(project, modules) { moduleFiles ->
+        val watcher = TraceFileWatcher(project, projectRoot) { moduleFiles ->
             listPanel.refresh(moduleFiles)
         }
 
