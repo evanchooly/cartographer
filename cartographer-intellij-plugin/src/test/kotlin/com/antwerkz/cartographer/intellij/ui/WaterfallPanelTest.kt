@@ -1,7 +1,9 @@
 package com.antwerkz.cartographer.intellij.ui
 
 import com.antwerkz.cartographer.intellij.model.SpanNode
+import java.awt.event.InputEvent
 import java.awt.event.MouseEvent
+import java.awt.event.MouseWheelEvent
 import javax.swing.JPanel
 import javax.swing.JScrollPane
 import javax.swing.SwingUtilities
@@ -97,5 +99,65 @@ class WaterfallPanelTest {
 
         assertEquals(null, selected)
         assertEquals(null, panel.selectedSpan)
+    }
+
+    @Test
+    fun `ctrl wheel zooms in and widens the preferred size`() {
+        val panel = WaterfallPanel {}
+        SwingUtilities.invokeAndWait {
+            panel.load(listOf(span("com.example.Foo.bar", 0, 1_000_000)))
+        }
+        val inner = innerPanelOf(panel)
+        val widthBefore = inner.preferredSize.width
+
+        SwingUtilities.invokeAndWait {
+            inner.dispatchEvent(
+                MouseWheelEvent(
+                    inner,
+                    MouseWheelEvent.MOUSE_WHEEL,
+                    System.currentTimeMillis(),
+                    InputEvent.CTRL_DOWN_MASK,
+                    10,
+                    10,
+                    0,
+                    false,
+                    MouseWheelEvent.WHEEL_UNIT_SCROLL,
+                    1,
+                    -1
+                )
+            )
+        }
+
+        assertEquals(true, inner.preferredSize.width > widthBefore)
+    }
+
+    @Test
+    fun `plain wheel does not change preferred width`() {
+        val panel = WaterfallPanel {}
+        SwingUtilities.invokeAndWait {
+            panel.load(listOf(span("com.example.Foo.bar", 0, 1_000_000)))
+        }
+        val inner = innerPanelOf(panel)
+        val widthBefore = inner.preferredSize.width
+
+        SwingUtilities.invokeAndWait {
+            inner.dispatchEvent(
+                MouseWheelEvent(
+                    inner,
+                    MouseWheelEvent.MOUSE_WHEEL,
+                    System.currentTimeMillis(),
+                    0,
+                    10,
+                    10,
+                    0,
+                    false,
+                    MouseWheelEvent.WHEEL_UNIT_SCROLL,
+                    1,
+                    -1
+                )
+            )
+        }
+
+        assertEquals(widthBefore, inner.preferredSize.width)
     }
 }

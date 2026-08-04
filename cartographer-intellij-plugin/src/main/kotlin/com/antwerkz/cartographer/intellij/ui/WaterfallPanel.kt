@@ -29,6 +29,10 @@ private const val DEFAULT_VIEWPORT_WIDTH = 600
 private const val INDENT_PX = 12
 private const val MIN_BAR_WIDTH = 2
 private const val TICK_INTERVALS = 5 // produces TICK_INTERVALS+1 tick marks (0..TICK_INTERVALS)
+private const val MIN_BAR_AREA_WIDTH = 300
+private const val ZOOM_STEP = 1.1
+private const val MIN_ZOOM = 1.0
+private const val MAX_ZOOM = 20.0
 
 class WaterfallPanel(private val onSpanSelected: (SpanNode) -> Unit) : JPanel() {
 
@@ -38,6 +42,7 @@ class WaterfallPanel(private val onSpanSelected: (SpanNode) -> Unit) : JPanel() 
 
     private var rootStartNano: Long = 0
     private var totalNano: Long = 1
+    private var zoomFactor: Double = MIN_ZOOM
 
     private val inner =
         object : JPanel() {
@@ -48,8 +53,12 @@ class WaterfallPanel(private val onSpanSelected: (SpanNode) -> Unit) : JPanel() 
 
             override fun getPreferredSize(): Dimension {
                 val fm = getFontMetrics(font)
+                val labelWidth = labelWidth(fm)
+                val viewportWidth = parent?.width ?: DEFAULT_VIEWPORT_WIDTH
+                val baseBarAreaWidth = max(MIN_BAR_AREA_WIDTH, viewportWidth - labelWidth)
+                val barAreaWidth = (baseBarAreaWidth * zoomFactor).toInt()
                 return Dimension(
-                    parent?.width ?: DEFAULT_VIEWPORT_WIDTH,
+                    labelWidth + barAreaWidth,
                     axisHeight(fm) + flatSpans.size * rowHeight(fm)
                 )
             }
@@ -74,6 +83,16 @@ class WaterfallPanel(private val onSpanSelected: (SpanNode) -> Unit) : JPanel() 
                 }
             }
         )
+        inner.addMouseWheelListener { e ->
+            if (e.isControlDown) {
+                zoomFactor =
+                    if (e.wheelRotation < 0) min(MAX_ZOOM, zoomFactor * ZOOM_STEP)
+                    else max(MIN_ZOOM, zoomFactor / ZOOM_STEP)
+                inner.revalidate()
+                inner.repaint()
+                e.consume()
+            }
+        }
     }
 
     fun load(roots: List<SpanNode>) {
