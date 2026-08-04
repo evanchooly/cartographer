@@ -13,7 +13,7 @@
 - Spec: `docs/superpowers/specs/2026-08-03-waterfall-panel-ux-design.md` — follow it exactly; do not add scope beyond it (no cursor-anchored zoom, no toolbar/keyboard zoom controls, no `TraceListPanel` changes).
 - All edits are within `cartographer-intellij-plugin`; do not touch `cartographer-agent` or `cartographer-maven-plugin`.
 - Tests use plain JUnit4 (no `LightJavaCodeInsightFixtureTestCase`) since none of this touches PSI/project state — instantiate Swing components directly.
-- Run tests with: `./gradlew :cartographer-intellij-plugin:test --tests "com.antwerkz.cartographer.intellij.ui.*"` from the repo root.
+- Run tests with: `cd cartographer-intellij-plugin && ./gradlew test --tests "com.antwerkz.cartographer.intellij.ui.*"` (the Gradle project lives inside `cartographer-intellij-plugin/`, not the repo root — there is no root-level `gradlew`).
 
 ---
 
@@ -119,7 +119,7 @@ class WaterfallPanelTest {
 
 - [ ] **Step 2: Run tests to verify they fail**
 
-Run: `./gradlew :cartographer-intellij-plugin:test --tests "com.antwerkz.cartographer.intellij.ui.WaterfallPanelTest"`
+Run: `cd cartographer-intellij-plugin && ./gradlew test --tests "com.antwerkz.cartographer.intellij.ui.WaterfallPanelTest"`
 Expected: compiles against the current `WaterfallPanel` (no signature changes needed yet for this test file), but `preferred height matches font metrics based row and axis height` FAILS because current code uses fixed `ROW_HEIGHT = 22` / `AXIS_HEIGHT = 24` instead of `fm.height + 8` / `fm.height + 10`. (The other two tests should already pass against current code — that's fine, they lock in behavior this task must not break.)
 
 - [ ] **Step 3: Replace `WaterfallPanel.kt` with the font-aware version**
@@ -317,7 +317,7 @@ class WaterfallPanel(private val onSpanSelected: (SpanNode) -> Unit) : JPanel() 
 
 - [ ] **Step 4: Run tests to verify they pass**
 
-Run: `./gradlew :cartographer-intellij-plugin:test --tests "com.antwerkz.cartographer.intellij.ui.WaterfallPanelTest"`
+Run: `cd cartographer-intellij-plugin && ./gradlew test --tests "com.antwerkz.cartographer.intellij.ui.WaterfallPanelTest"`
 Expected: PASS (all three tests)
 
 - [ ] **Step 5: Commit**
@@ -407,7 +407,7 @@ Add to `WaterfallPanelTest.kt` (new imports: `java.awt.event.InputEvent`, `java.
 
 - [ ] **Step 2: Run tests to verify they fail**
 
-Run: `./gradlew :cartographer-intellij-plugin:test --tests "com.antwerkz.cartographer.intellij.ui.WaterfallPanelTest"`
+Run: `cd cartographer-intellij-plugin && ./gradlew test --tests "com.antwerkz.cartographer.intellij.ui.WaterfallPanelTest"`
 Expected: `ctrl wheel zooms in and widens the preferred size` FAILS (no wheel listener exists yet, width unchanged). `plain wheel does not change preferred width` should already pass (nothing reacts to wheel events yet) — that's fine, it locks in the no-op case.
 
 - [ ] **Step 3: Add zoom state and Ctrl+wheel handling**
@@ -464,7 +464,7 @@ In `init`, after the existing `inner.addMouseListener(...)` block, add:
 
 - [ ] **Step 4: Run tests to verify they pass**
 
-Run: `./gradlew :cartographer-intellij-plugin:test --tests "com.antwerkz.cartographer.intellij.ui.WaterfallPanelTest"`
+Run: `cd cartographer-intellij-plugin && ./gradlew test --tests "com.antwerkz.cartographer.intellij.ui.WaterfallPanelTest"`
 Expected: PASS (all five tests)
 
 - [ ] **Step 5: Commit**
@@ -581,7 +581,7 @@ class SpanDetailPanelTest {
 
 - [ ] **Step 3: Run tests to verify the new ones fail**
 
-Run: `./gradlew :cartographer-intellij-plugin:test --tests "com.antwerkz.cartographer.intellij.ui.*"`
+Run: `cd cartographer-intellij-plugin && ./gradlew test --tests "com.antwerkz.cartographer.intellij.ui.*"`
 Expected: compile error — `WaterfallPanel` doesn't yet accept a second constructor argument, and `SpanDetailPanel()` no-arg constructor doesn't exist yet. (This is expected: the test step precedes the production-code step, per TDD, even though here the failure is a compile error rather than an assertion failure — that's normal for a constructor-signature change.)
 
 - [ ] **Step 4: Add `onSpanActivated` and double-click handling to `WaterfallPanel`**
@@ -693,12 +693,12 @@ with:
 
 - [ ] **Step 7: Run tests to verify everything passes**
 
-Run: `./gradlew :cartographer-intellij-plugin:test --tests "com.antwerkz.cartographer.intellij.ui.*"`
+Run: `cd cartographer-intellij-plugin && ./gradlew test --tests "com.antwerkz.cartographer.intellij.ui.*"`
 Expected: PASS (all `WaterfallPanelTest` and `SpanDetailPanelTest` tests)
 
 Then run the full plugin test suite to catch any other call site this plan didn't anticipate:
 
-Run: `./gradlew :cartographer-intellij-plugin:test`
+Run: `cd cartographer-intellij-plugin && ./gradlew test`
 Expected: PASS, no compile errors elsewhere referencing the old `WaterfallPanel`/`SpanDetailPanel` constructors
 
 - [ ] **Step 8: Commit**
@@ -716,7 +716,7 @@ git commit -m "feat: double-click a span in the waterfall to open its source"
 
 - [ ] **Step 1: Run the plugin sandbox**
 
-Run: `./gradlew :cartographer-intellij-plugin:runIde`
+Run: `cd cartographer-intellij-plugin && ./gradlew runIde`
 
 - [ ] **Step 2: Verify font sizing**
 
