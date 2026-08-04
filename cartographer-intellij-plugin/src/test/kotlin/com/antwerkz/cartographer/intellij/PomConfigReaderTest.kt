@@ -1,20 +1,21 @@
 package com.antwerkz.cartographer.intellij
 
+import java.io.File
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
-import java.io.File
 
 class PomConfigReaderTest {
 
-    @get:Rule
-    val tmp = TemporaryFolder()
+    @get:Rule val tmp = TemporaryFolder()
 
     @Test
     fun `reads configured outputDir from plugin config`() {
-        val pom = tmp.newFile("pom.xml").also {
-            it.writeText("""
+        val pom =
+            tmp.newFile("pom.xml").also {
+                it.writeText(
+                    """
                 <project>
                   <build>
                     <plugins>
@@ -28,16 +29,20 @@ class PomConfigReaderTest {
                     </plugins>
                   </build>
                 </project>
-            """.trimIndent())
-        }
+            """
+                        .trimIndent()
+                )
+            }
         val result = PomConfigReader.readOutputDir(pom.parentFile)
         assertEquals(File(pom.parentFile, "custom/traces"), result)
     }
 
     @Test
     fun `falls back to target-cartographer when plugin present but no outputDir`() {
-        val pom = tmp.newFile("pom.xml").also {
-            it.writeText("""
+        val pom =
+            tmp.newFile("pom.xml").also {
+                it.writeText(
+                    """
                 <project>
                   <build>
                     <plugins>
@@ -48,8 +53,10 @@ class PomConfigReaderTest {
                     </plugins>
                   </build>
                 </project>
-            """.trimIndent())
-        }
+            """
+                        .trimIndent()
+                )
+            }
         val result = PomConfigReader.readOutputDir(pom.parentFile)
         assertEquals(File(pom.parentFile, "target/cartographer"), result)
     }
@@ -62,17 +69,20 @@ class PomConfigReaderTest {
 
     @Test
     fun `falls back to target-cartographer when plugin absent`() {
-        val pom = tmp.newFile("pom.xml").also {
-            it.writeText("<project><build><plugins></plugins></build></project>")
-        }
+        val pom =
+            tmp.newFile("pom.xml").also {
+                it.writeText("<project><build><plugins></plugins></build></project>")
+            }
         val result = PomConfigReader.readOutputDir(pom.parentFile)
         assertEquals(File(pom.parentFile, "target/cartographer"), result)
     }
 
     @Test
     fun `does not confuse plugin dependency groupId with plugin groupId`() {
-        val pom = tmp.newFile("pom.xml").also {
-            it.writeText("""
+        val pom =
+            tmp.newFile("pom.xml").also {
+                it.writeText(
+                    """
                 <project>
                   <build>
                     <plugins>
@@ -96,17 +106,20 @@ class PomConfigReaderTest {
                     </plugins>
                   </build>
                 </project>
-            """.trimIndent())
-        }
+            """
+                        .trimIndent()
+                )
+            }
         val result = PomConfigReader.readOutputDir(pom.parentFile)
         assertEquals(File(pom.parentFile, "real/output"), result)
     }
 
     @Test
     fun `readModules returns single null entry when no modules element`() {
-        val pom = tmp.newFile("pom.xml").also {
-            it.writeText("<project><build><plugins></plugins></build></project>")
-        }
+        val pom =
+            tmp.newFile("pom.xml").also {
+                it.writeText("<project><build><plugins></plugins></build></project>")
+            }
         val result = PomConfigReader.readModules(pom.parentFile)
         assertEquals(1, result.size)
         assertEquals(null, result[0].first)
@@ -115,16 +128,20 @@ class PomConfigReaderTest {
 
     @Test
     fun `readModules reads Maven 3 modules`() {
-        val pom = tmp.newFile("pom.xml").also {
-            it.writeText("""
+        val pom =
+            tmp.newFile("pom.xml").also {
+                it.writeText(
+                    """
                 <project>
                   <modules>
                     <module>module-a</module>
                     <module>module-b</module>
                   </modules>
                 </project>
-            """.trimIndent())
-        }
+            """
+                        .trimIndent()
+                )
+            }
         val result = PomConfigReader.readModules(pom.parentFile)
         assertEquals(2, result.size)
         assertEquals("module-a" to File(pom.parentFile, "module-a/target/cartographer"), result[0])
@@ -133,26 +150,38 @@ class PomConfigReaderTest {
 
     @Test
     fun `readModules reads Maven 4 subprojects`() {
-        val pom = tmp.newFile("pom.xml").also {
-            it.writeText("""
+        val pom =
+            tmp.newFile("pom.xml").also {
+                it.writeText(
+                    """
                 <project>
                   <subprojects>
                     <subproject>service-a</subproject>
                     <subproject>service-b</subproject>
                   </subprojects>
                 </project>
-            """.trimIndent())
-        }
+            """
+                        .trimIndent()
+                )
+            }
         val result = PomConfigReader.readModules(pom.parentFile)
         assertEquals(2, result.size)
-        assertEquals("service-a" to File(pom.parentFile, "service-a/target/cartographer"), result[0])
-        assertEquals("service-b" to File(pom.parentFile, "service-b/target/cartographer"), result[1])
+        assertEquals(
+            "service-a" to File(pom.parentFile, "service-a/target/cartographer"),
+            result[0]
+        )
+        assertEquals(
+            "service-b" to File(pom.parentFile, "service-b/target/cartographer"),
+            result[1]
+        )
     }
 
     @Test
     fun `readModules prefers subprojects over modules when both present`() {
-        val pom = tmp.newFile("pom.xml").also {
-            it.writeText("""
+        val pom =
+            tmp.newFile("pom.xml").also {
+                it.writeText(
+                    """
                 <project>
                   <subprojects>
                     <subproject>new-module</subproject>
@@ -161,8 +190,10 @@ class PomConfigReaderTest {
                     <module>old-module</module>
                   </modules>
                 </project>
-            """.trimIndent())
-        }
+            """
+                        .trimIndent()
+                )
+            }
         val result = PomConfigReader.readModules(pom.parentFile)
         assertEquals(1, result.size)
         assertEquals("new-module", result[0].first)

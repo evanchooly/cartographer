@@ -18,24 +18,27 @@ private const val AXIS_HEIGHT = 24
 private const val LABEL_WIDTH = 200
 private const val INDENT_PX = 12
 private const val MIN_BAR_WIDTH = 2
-private const val TICK_INTERVALS = 5  // produces TICK_INTERVALS+1 tick marks (0..TICK_INTERVALS)
+private const val TICK_INTERVALS = 5 // produces TICK_INTERVALS+1 tick marks (0..TICK_INTERVALS)
 
 class WaterfallPanel(private val onSpanSelected: (SpanNode) -> Unit) : JPanel() {
 
     private var flatSpans: List<SpanNode> = emptyList()
     var selectedSpan: SpanNode? = null
         private set
+
     private var rootStartNano: Long = 0
     private var totalNano: Long = 1
 
-    private val inner = object : JPanel() {
-        override fun paintComponent(g: Graphics) {
-            super.paintComponent(g)
-            paintWaterfall(g as Graphics2D)
+    private val inner =
+        object : JPanel() {
+            override fun paintComponent(g: Graphics) {
+                super.paintComponent(g)
+                paintWaterfall(g as Graphics2D)
+            }
+
+            override fun getPreferredSize() =
+                Dimension(parent?.width ?: 600, AXIS_HEIGHT + flatSpans.size * ROW_HEIGHT)
         }
-        override fun getPreferredSize() =
-            Dimension(parent?.width ?: 600, AXIS_HEIGHT + flatSpans.size * ROW_HEIGHT)
-    }
 
     private val scroll = JBScrollPane(inner)
 
@@ -43,16 +46,18 @@ class WaterfallPanel(private val onSpanSelected: (SpanNode) -> Unit) : JPanel() 
         layout = BorderLayout()
         add(scroll, BorderLayout.CENTER)
         inner.background = JBColor.background()
-        inner.addMouseListener(object : MouseAdapter() {
-            override fun mouseClicked(e: MouseEvent) {
-                val row = (e.y - AXIS_HEIGHT) / ROW_HEIGHT
-                if (row in flatSpans.indices) {
-                    selectedSpan = flatSpans[row]
-                    inner.repaint()
-                    onSpanSelected(selectedSpan!!)
+        inner.addMouseListener(
+            object : MouseAdapter() {
+                override fun mouseClicked(e: MouseEvent) {
+                    val row = (e.y - AXIS_HEIGHT) / ROW_HEIGHT
+                    if (row in flatSpans.indices) {
+                        selectedSpan = flatSpans[row]
+                        inner.repaint()
+                        onSpanSelected(selectedSpan!!)
+                    }
                 }
             }
-        })
+        )
     }
 
     fun load(roots: List<SpanNode>) {
@@ -123,13 +128,18 @@ class WaterfallPanel(private val onSpanSelected: (SpanNode) -> Unit) : JPanel() 
             val relStart = span.startNano - rootStartNano
             val available = max(1, barAreaWidth - indent)
             val barX = LABEL_WIDTH + indent + (relStart.toDouble() / totalNano * available).toInt()
-            val barW = max(MIN_BAR_WIDTH, ((span.endNano - span.startNano).toDouble() / totalNano * available).toInt())
+            val barW =
+                max(
+                    MIN_BAR_WIDTH,
+                    ((span.endNano - span.startNano).toDouble() / totalNano * available).toInt()
+                )
 
-            g.color = when {
-                span == selectedSpan -> COLOR_SELECTED
-                span.depth == 0 -> COLOR_ROOT
-                else -> COLOR_CHILD
-            }
+            g.color =
+                when {
+                    span == selectedSpan -> COLOR_SELECTED
+                    span.depth == 0 -> COLOR_ROOT
+                    else -> COLOR_CHILD
+                }
             g.fillRoundRect(barX, y + 5, barW, ROW_HEIGHT - 10, 3, 3)
 
             if (span == selectedSpan) {

@@ -18,48 +18,46 @@ import javax.swing.event.AncestorListener
 class CartographerToolWindowFactory : ToolWindowFactory {
 
     override fun createToolWindowContent(project: Project, toolWindow: ToolWindow) {
-        val detailPanel = SpanDetailPanel { span ->
-            SourceNavigator.navigate(project, span.name)
-        }
+        val detailPanel = SpanDetailPanel { span -> SourceNavigator.navigate(project, span.name) }
 
-        val waterfallPanel = WaterfallPanel { span ->
-            detailPanel.show(span)
-        }
+        val waterfallPanel = WaterfallPanel { span -> detailPanel.show(span) }
 
         val listPanel = TraceListPanel { file ->
             detailPanel.clear()
             ApplicationManager.getApplication().executeOnPooledThread {
                 val roots = OtlpJsonParser.parse(file)
-                ApplicationManager.getApplication().invokeLater {
-                    waterfallPanel.load(roots)
-                }
+                ApplicationManager.getApplication().invokeLater { waterfallPanel.load(roots) }
             }
         }
 
         val projectRoot = project.basePath?.let { File(it) } ?: File(".")
 
-        val watcher = TraceFileWatcher(project, projectRoot) { moduleFiles ->
-            listPanel.refresh(moduleFiles)
-        }
+        val watcher =
+            TraceFileWatcher(project, projectRoot) { moduleFiles -> listPanel.refresh(moduleFiles) }
 
-        val rightPanel = JPanel(BorderLayout()).apply {
-            add(waterfallPanel, BorderLayout.CENTER)
-            add(detailPanel, BorderLayout.SOUTH)
-        }
+        val rightPanel =
+            JPanel(BorderLayout()).apply {
+                add(waterfallPanel, BorderLayout.CENTER)
+                add(detailPanel, BorderLayout.SOUTH)
+            }
 
-        val splitter = JBSplitter(false, 0.25f).apply {
-            firstComponent = listPanel
-            secondComponent = rightPanel
-        }
+        val splitter =
+            JBSplitter(false, 0.25f).apply {
+                firstComponent = listPanel
+                secondComponent = rightPanel
+            }
 
-        val content = ContentFactory.getInstance()
-            .createContent(splitter, "", false)
+        val content = ContentFactory.getInstance().createContent(splitter, "", false)
 
-        splitter.addAncestorListener(object : AncestorListener {
-            override fun ancestorAdded(event: AncestorEvent) = watcher.start()
-            override fun ancestorRemoved(event: AncestorEvent) = watcher.stop()
-            override fun ancestorMoved(event: AncestorEvent) = Unit
-        })
+        splitter.addAncestorListener(
+            object : AncestorListener {
+                override fun ancestorAdded(event: AncestorEvent) = watcher.start()
+
+                override fun ancestorRemoved(event: AncestorEvent) = watcher.stop()
+
+                override fun ancestorMoved(event: AncestorEvent) = Unit
+            }
+        )
 
         toolWindow.contentManager.addContent(content)
         // Start immediately in case the tool window is already visible when content is added

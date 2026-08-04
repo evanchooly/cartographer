@@ -12,9 +12,10 @@ class TraceFileWatcher(
     private val projectRoot: File,
     private val onChange: (Map<String?, List<File>>) -> Unit
 ) {
-    private val scheduler = Executors.newSingleThreadScheduledExecutor { r ->
-        Thread(r, "cartographer-watcher").also { it.isDaemon = true }
-    }
+    private val scheduler =
+        Executors.newSingleThreadScheduledExecutor { r ->
+            Thread(r, "cartographer-watcher").also { it.isDaemon = true }
+        }
 
     @Volatile private var pollTask: ScheduledFuture<*>? = null
     @Volatile private var lastSnapshot: Map<String?, List<File>> = emptyMap()
@@ -32,15 +33,16 @@ class TraceFileWatcher(
 
     private fun poll() {
         val modules = PomConfigReader.readModules(projectRoot)
-        val snapshot = modules.associate { (name, dir) ->
-            name to if (dir.isDirectory) {
-                dir.listFiles { f -> f.name.endsWith(".json") }
-                    ?.sortedBy { it.name }
-                    ?: emptyList()
-            } else {
-                emptyList()
+        val snapshot =
+            modules.associate { (name, dir) ->
+                name to
+                    if (dir.isDirectory) {
+                        dir.listFiles { f -> f.name.endsWith(".json") }?.sortedBy { it.name }
+                            ?: emptyList()
+                    } else {
+                        emptyList()
+                    }
             }
-        }
         if (snapshot != lastSnapshot) {
             lastSnapshot = snapshot
             ApplicationManager.getApplication().invokeLater { onChange(snapshot) }

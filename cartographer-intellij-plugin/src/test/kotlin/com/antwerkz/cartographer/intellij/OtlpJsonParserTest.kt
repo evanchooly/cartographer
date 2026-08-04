@@ -1,14 +1,12 @@
 package com.antwerkz.cartographer.intellij
 
-import com.antwerkz.cartographer.intellij.model.SpanNode
+import java.io.File
 import org.junit.Assert.*
 import org.junit.Test
-import java.io.File
 
 class OtlpJsonParserTest {
 
-    private fun resource(name: String) =
-        File(javaClass.getResource("/$name")!!.toURI())
+    private fun resource(name: String) = File(javaClass.getResource("/$name")!!.toURI())
 
     @Test
     fun `parses root span from single-span trace`() {
@@ -62,10 +60,11 @@ class OtlpJsonParserTest {
 
     @Test
     fun `returns empty list for empty resourceSpans`() {
-        val tmp = File.createTempFile("cartographer-test", ".json").also {
-            it.writeText("""{"resourceSpans":[]}""")
-            it.deleteOnExit()
-        }
+        val tmp =
+            File.createTempFile("cartographer-test", ".json").also {
+                it.writeText("""{"resourceSpans":[]}""")
+                it.deleteOnExit()
+            }
         val roots = OtlpJsonParser.parse(tmp)
         assertTrue(roots.isEmpty())
     }

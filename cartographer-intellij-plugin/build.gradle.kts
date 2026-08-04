@@ -3,6 +3,7 @@ import org.jetbrains.intellij.platform.gradle.TestFrameworkType
 plugins {
     id("org.jetbrains.intellij.platform") version "2.16.0"
     kotlin("jvm") version "2.3.20"
+    id("com.diffplug.spotless") version "6.25.0"
 }
 
 group = "com.antwerkz"
@@ -38,4 +39,21 @@ kotlin {
 
 intellijPlatform {
     buildSearchableOptions = false
+}
+
+spotless {
+    java {
+        target("src/**/*.java")
+        eclipse().configFile("config/eclipse-format.xml")
+        importOrderFile("config/eclipse.importorder")
+        removeUnusedImports()
+    }
+    kotlin {
+        target("src/**/*.kt")
+        ktfmt().kotlinlangStyle()
+    }
+}
+
+tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile> {
+    dependsOn("spotlessApply")
 }

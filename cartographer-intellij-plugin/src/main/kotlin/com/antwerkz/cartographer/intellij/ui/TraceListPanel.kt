@@ -23,7 +23,6 @@ class TraceListPanel(private val onSelect: (File) -> Unit) : JPanel(BorderLayout
         private val log = Logger.getInstance(TraceListPanel::class.java)
     }
 
-
     private val root = DefaultMutableTreeNode("root")
     private val model = DefaultTreeModel(root)
     private val tree = Tree(model)
@@ -32,21 +31,25 @@ class TraceListPanel(private val onSelect: (File) -> Unit) : JPanel(BorderLayout
         tree.isRootVisible = false
         tree.showsRootHandles = true
         tree.selectionModel.selectionMode = TreeSelectionModel.SINGLE_TREE_SELECTION
-        tree.selectionModel = object : DefaultTreeSelectionModel() {
-            override fun setSelectionPath(path: TreePath?) {
-                val node = path?.lastPathComponent as? DefaultMutableTreeNode
-                if (node?.userObject is ModuleHeader) return
-                super.setSelectionPath(path)
+        tree.selectionModel =
+            object : DefaultTreeSelectionModel() {
+                override fun setSelectionPath(path: TreePath?) {
+                    val node = path?.lastPathComponent as? DefaultMutableTreeNode
+                    if (node?.userObject is ModuleHeader) return
+                    super.setSelectionPath(path)
+                }
+
+                override fun addSelectionPath(path: TreePath?) {
+                    val node = path?.lastPathComponent as? DefaultMutableTreeNode
+                    if (node?.userObject is ModuleHeader) return
+                    super.addSelectionPath(path)
+                }
             }
-            override fun addSelectionPath(path: TreePath?) {
-                val node = path?.lastPathComponent as? DefaultMutableTreeNode
-                if (node?.userObject is ModuleHeader) return
-                super.addSelectionPath(path)
-            }
-        }
         tree.cellRenderer = TraceTreeCellRenderer()
         tree.addTreeSelectionListener { e ->
-            val node = e.path?.lastPathComponent as? DefaultMutableTreeNode ?: return@addTreeSelectionListener
+            val node =
+                e.path?.lastPathComponent as? DefaultMutableTreeNode
+                    ?: return@addTreeSelectionListener
             val leaf = node.userObject as? TraceLeaf ?: return@addTreeSelectionListener
             onSelect(leaf.file)
         }
@@ -55,8 +58,8 @@ class TraceListPanel(private val onSelect: (File) -> Unit) : JPanel(BorderLayout
 
     fun refresh(modules: Map<String?, List<File>>) {
         ApplicationManager.getApplication().executeOnPooledThread {
-            val durations: Map<File, Double?> = modules.values.flatten()
-                .associateWith { f ->
+            val durations: Map<File, Double?> =
+                modules.values.flatten().associateWith { f ->
                     try {
                         OtlpJsonParser.parse(f).firstOrNull()?.durationMs
                     } catch (e: Exception) {
@@ -76,11 +79,13 @@ class TraceListPanel(private val onSelect: (File) -> Unit) : JPanel(BorderLayout
         if (singleModule) {
             populateClassNodes(root, modules[null] ?: emptyList(), durations)
         } else {
-            modules.entries.sortedBy { it.key ?: "" }.forEach { (moduleName, files) ->
-                val moduleNode = DefaultMutableTreeNode(ModuleHeader(moduleName ?: ""))
-                populateClassNodes(moduleNode, files, durations)
-                if (moduleNode.childCount > 0) root.add(moduleNode)
-            }
+            modules.entries
+                .sortedBy { it.key ?: "" }
+                .forEach { (moduleName, files) ->
+                    val moduleNode = DefaultMutableTreeNode(ModuleHeader(moduleName ?: ""))
+                    populateClassNodes(moduleNode, files, durations)
+                    if (moduleNode.childCount > 0) root.add(moduleNode)
+                }
         }
 
         if (root.childCount == 0) {
@@ -91,23 +96,30 @@ class TraceListPanel(private val onSelect: (File) -> Unit) : JPanel(BorderLayout
         for (i in 0 until tree.rowCount) tree.expandRow(i)
     }
 
-    private fun populateClassNodes(parent: DefaultMutableTreeNode, files: List<File>, durations: Map<File, Double?>) {
-        val byClass = files
-            .filter { it.name != "cartographer-run.json" }
-            .mapNotNull { file ->
-                val parseFileName = parseFileName(file)
-                val (fqcn, method) = parseFileName ?: return@mapNotNull null
-                Triple(file, fqcn, method)
-            }
-            .groupBy { (_, fqcn, _) -> fqcn }
-            .toSortedMap()
+    private fun populateClassNodes(
+        parent: DefaultMutableTreeNode,
+        files: List<File>,
+        durations: Map<File, Double?>
+    ) {
+        val byClass =
+            files
+                .filter { it.name != "cartographer-run.json" }
+                .mapNotNull { file ->
+                    val parseFileName = parseFileName(file)
+                    val (fqcn, method) = parseFileName ?: return@mapNotNull null
+                    Triple(file, fqcn, method)
+                }
+                .groupBy { (_, fqcn, _) -> fqcn }
+                .toSortedMap()
 
         byClass.forEach { (fqcn, entries) ->
             val simpleClass = fqcn.substringAfterLast('.')
             val classNode = DefaultMutableTreeNode(simpleClass)
-            entries.sortedBy { it.third }.forEach { (file, _, method) ->
-                classNode.add(DefaultMutableTreeNode(TraceLeaf(file, method, durations[file])))
-            }
+            entries
+                .sortedBy { it.third }
+                .forEach { (file, _, method) ->
+                    classNode.add(DefaultMutableTreeNode(TraceLeaf(file, method, durations[file])))
+                }
             parent.add(classNode)
         }
 
@@ -125,6 +137,7 @@ class TraceListPanel(private val onSelect: (File) -> Unit) : JPanel(BorderLayout
     }
 
     data class ModuleHeader(val name: String)
+
     data class TraceLeaf(val file: File, val label: String, val durationMs: Double?)
 
     private class TraceTreeCellRenderer : DefaultTreeCellRenderer() {

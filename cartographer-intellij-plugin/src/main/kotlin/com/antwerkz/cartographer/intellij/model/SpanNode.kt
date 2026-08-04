@@ -12,7 +12,8 @@ data class SpanNode(
     val durationMs: Double = (endNano - startNano) / 1_000_000.0
     val simpleName: String = run {
         val lastDot = name.lastIndexOf('.')
-        if (lastDot < 0) name else {
+        if (lastDot < 0) name
+        else {
             val classLastDot = name.lastIndexOf('.', lastDot - 1)
             if (classLastDot < 0) name else name.substring(classLastDot + 1)
         }

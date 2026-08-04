@@ -30,14 +30,18 @@ class SetupCartographerAction : AnAction() {
             val result = runCatching { doSetup(pomFile) }
             LocalFileSystem.getInstance().refreshAndFindFileByIoFile(pomFile)
             ApplicationManager.getApplication().invokeLater {
-                val (message, type) = when {
-                    result.isSuccess && result.getOrNull() == false ->
-                        "Cartographer profile already exists in ${pomFile.name} — nothing changed." to NotificationType.INFORMATION
-                    result.isSuccess ->
-                        "Cartographer profile added to ${pomFile.name}. Review auto-detected values before running." to NotificationType.WARNING
-                    else ->
-                        "Failed to set up Cartographer: ${result.exceptionOrNull()?.message}" to NotificationType.ERROR
-                }
+                val (message, type) =
+                    when {
+                        result.isSuccess && result.getOrNull() == false ->
+                            "Cartographer profile already exists in ${pomFile.name} — nothing changed." to
+                                NotificationType.INFORMATION
+                        result.isSuccess ->
+                            "Cartographer profile added to ${pomFile.name}. Review auto-detected values before running." to
+                                NotificationType.WARNING
+                        else ->
+                            "Failed to set up Cartographer: ${result.exceptionOrNull()?.message}" to
+                                NotificationType.ERROR
+                    }
                 NotificationGroupManager.getInstance()
                     .getNotificationGroup("Cartographer")
                     .createNotification(message, type)
@@ -60,19 +64,20 @@ class SetupCartographerAction : AnAction() {
     }
 
     internal fun detectPackage(basedir: File): String? {
-        val sourceRoot = listOf("kotlin", "java")
-            .map { File(basedir, "src/main/$it") }
-            .firstOrNull { it.isDirectory }
-            ?: return null
+        val sourceRoot =
+            listOf("kotlin", "java")
+                .map { File(basedir, "src/main/$it") }
+                .firstOrNull { it.isDirectory } ?: return null
 
         val segments = mutableListOf<String>()
         var current = sourceRoot
         while (true) {
-            val subdirs = current.listFiles { f -> f.isDirectory }
-                ?.sortedBy { it.name }
-                ?: break
+            val subdirs = current.listFiles { f -> f.isDirectory }?.sortedBy { it.name } ?: break
             when (subdirs.size) {
-                1 -> { segments += subdirs[0].name; current = subdirs[0] }
+                1 -> {
+                    segments += subdirs[0].name
+                    current = subdirs[0]
+                }
                 else -> break
             }
         }
@@ -80,17 +85,21 @@ class SetupCartographerAction : AnAction() {
     }
 
     private fun buildProfileXml(resolvedPackages: String?): String {
-        val version = PluginManagerCore.getPlugin(PluginId.getId("com.antwerkz.cartographer"))?.version ?: "LATEST"
-        val packagesContent = if (resolvedPackages != null) {
-            resolvedPackages.split(",")
-                .map { it.trim() }
-                .filter { it.isNotEmpty() }
-                .joinToString("\n") { "                <package>$it</package>" }
-        } else {
-            "                <!-- TODO: replace with the root package(s) to instrument, e.g.:\n" +
-            "                <package>com.example.myapp</package>\n" +
-            "                -->"
-        }
+        val version =
+            PluginManagerCore.getPlugin(PluginId.getId("com.antwerkz.cartographer"))?.version
+                ?: "LATEST"
+        val packagesContent =
+            if (resolvedPackages != null) {
+                resolvedPackages
+                    .split(",")
+                    .map { it.trim() }
+                    .filter { it.isNotEmpty() }
+                    .joinToString("\n") { "                <package>$it</package>" }
+            } else {
+                "                <!-- TODO: replace with the root package(s) to instrument, e.g.:\n" +
+                    "                <package>com.example.myapp</package>\n" +
+                    "                -->"
+            }
 
         return """
     <profile>
@@ -130,14 +139,21 @@ $packagesContent
 
     private fun insertProfile(pom: File, profileXml: String) {
         val content = pom.readText()
-        val modified = when {
-            "</profiles>" in content ->
-                content.replace("</profiles>", "$profileXml\n  </profiles>")
-            Regex("<profiles\\s*/>").containsMatchIn(content) ->
-                content.replace(Regex("<profiles\\s*/>"), "<profiles>$profileXml\n  </profiles>")
-            else ->
-                content.replace("</project>", "  <profiles>$profileXml\n  </profiles>\n</project>")
-        }
+        val modified =
+            when {
+                "</profiles>" in content ->
+                    content.replace("</profiles>", "$profileXml\n  </profiles>")
+                Regex("<profiles\\s*/>").containsMatchIn(content) ->
+                    content.replace(
+                        Regex("<profiles\\s*/>"),
+                        "<profiles>$profileXml\n  </profiles>"
+                    )
+                else ->
+                    content.replace(
+                        "</project>",
+                        "  <profiles>$profileXml\n  </profiles>\n</project>"
+                    )
+            }
         pom.writeText(modified)
     }
 }

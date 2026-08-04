@@ -20,21 +20,24 @@ object SourceNavigator {
         if (methodName.isEmpty()) return
 
         ApplicationManager.getApplication().invokeLater {
-            val target: PsiElement? = ReadAction.compute<PsiElement?, Throwable> {
-                val psiFacade = JavaPsiFacade.getInstance(project)
-                val psiClass = psiFacade.findClass(className, GlobalSearchScope.allScope(project))
-                    ?: return@compute null
-                if (methodName == "<init>") {
-                    psiClass.constructors.firstOrNull() ?: psiClass
-                } else {
-                    psiClass.findMethodsByName(methodName, true).firstOrNull() ?: psiClass
+            val target: PsiElement? =
+                ReadAction.compute<PsiElement?, Throwable> {
+                    val psiFacade = JavaPsiFacade.getInstance(project)
+                    val psiClass =
+                        psiFacade.findClass(className, GlobalSearchScope.allScope(project))
+                            ?: return@compute null
+                    if (methodName == "<init>") {
+                        psiClass.constructors.firstOrNull() ?: psiClass
+                    } else {
+                        psiClass.findMethodsByName(methodName, true).firstOrNull() ?: psiClass
+                    }
                 }
-            }
 
             if (target == null) {
                 val editor = FileEditorManager.getInstance(project).selectedTextEditor
                 if (editor != null) {
-                    HintManager.getInstance().showErrorHint(editor, "Source not available for $spanName")
+                    HintManager.getInstance()
+                        .showErrorHint(editor, "Source not available for $spanName")
                 }
                 return@invokeLater
             }

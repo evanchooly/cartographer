@@ -6,12 +6,15 @@ import com.intellij.util.ui.UIUtil
 class SourceNavigatorTest : LightJavaCodeInsightFixtureTestCase() {
 
     fun `test navigate resolves Calculator add method`() {
-        myFixture.addClass("""
+        myFixture.addClass(
+            """
             package com.example;
             public class Calculator {
                 public int add(int a, int b) { return a + b; }
             }
-        """.trimIndent())
+        """
+                .trimIndent()
+        )
 
         SourceNavigator.navigate(project, "com.example.Calculator.add")
         UIUtil.dispatchAllInvocationEvents()
@@ -25,10 +28,13 @@ class SourceNavigatorTest : LightJavaCodeInsightFixtureTestCase() {
     }
 
     fun `test navigate handles constructor`() {
-        myFixture.addClass("""
+        myFixture.addClass(
+            """
             package com.example;
             public class Widget { public Widget() {} }
-        """.trimIndent())
+        """
+                .trimIndent()
+        )
         SourceNavigator.navigate(project, "com.example.Widget.<init>")
         UIUtil.dispatchAllInvocationEvents()
     }

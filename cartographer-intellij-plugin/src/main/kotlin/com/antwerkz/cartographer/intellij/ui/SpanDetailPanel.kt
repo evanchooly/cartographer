@@ -23,28 +23,28 @@ class SpanDetailPanel(private val onGoToSource: (SpanNode) -> Unit) : JPanel(Bor
         background = JBColor(Color(0x2b, 0x2b, 0x2b), Color(0x2b, 0x2b, 0x2b))
         isVisible = false
 
-        val content = JPanel(FlowLayout(FlowLayout.LEFT, 12, 0)).apply {
-            isOpaque = false
-            add(nameLabel)
-            add(durationLabel)
-            add(attrsLabel)
-            add(goToSourceButton)
-        }
+        val content =
+            JPanel(FlowLayout(FlowLayout.LEFT, 12, 0)).apply {
+                isOpaque = false
+                add(nameLabel)
+                add(durationLabel)
+                add(attrsLabel)
+                add(goToSourceButton)
+            }
         add(content, BorderLayout.CENTER)
 
-        goToSourceButton.addActionListener {
-            currentSpan?.let { onGoToSource(it) }
-        }
+        goToSourceButton.addActionListener { currentSpan?.let { onGoToSource(it) } }
     }
 
     fun show(span: SpanNode) {
         currentSpan = span
         nameLabel.text = span.simpleName
         durationLabel.text = "%.0fms".format(span.durationMs)
-        attrsLabel.text = span.attributes.entries
-            .filter { it.key.startsWith("arg.") }
-            .sortedBy { it.key }
-            .joinToString("  ") { "${it.key}: ${it.value}" }
+        attrsLabel.text =
+            span.attributes.entries
+                .filter { it.key.startsWith("arg.") }
+                .sortedBy { it.key }
+                .joinToString("  ") { "${it.key}: ${it.value}" }
         isVisible = true
         revalidate()
         repaint()

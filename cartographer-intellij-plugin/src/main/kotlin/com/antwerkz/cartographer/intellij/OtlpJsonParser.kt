@@ -45,9 +45,8 @@ object OtlpJsonParser {
     }
 
     private fun buildTree(rawSpans: List<RawSpan>): List<SpanNode> {
-        val childrenByParent = rawSpans
-            .filter { it.parentSpanId.isNotEmpty() }
-            .groupBy { it.parentSpanId }
+        val childrenByParent =
+            rawSpans.filter { it.parentSpanId.isNotEmpty() }.groupBy { it.parentSpanId }
         val roots = rawSpans.filter { it.parentSpanId.isEmpty() }
         return roots.map { build(it, 0, childrenByParent) }
     }
@@ -57,18 +56,19 @@ object OtlpJsonParser {
         depth: Int,
         childrenByParent: Map<String, List<RawSpan>>
     ): SpanNode {
-        val children = childrenByParent[raw.spanId]
-            ?.sortedBy { it.startNano }
-            ?.map { build(it, depth + 1, childrenByParent) }
-            ?: emptyList()
+        val children =
+            childrenByParent[raw.spanId]
+                ?.sortedBy { it.startNano }
+                ?.map { build(it, depth + 1, childrenByParent) } ?: emptyList()
         return SpanNode(
-            spanId = raw.spanId,
-            name = raw.name,
-            startNano = raw.startNano,
-            endNano = raw.endNano,
-            attributes = raw.attributes,
-            depth = depth
-        ).also { node -> node.children.addAll(children) }
+                spanId = raw.spanId,
+                name = raw.name,
+                startNano = raw.startNano,
+                endNano = raw.endNano,
+                attributes = raw.attributes,
+                depth = depth
+            )
+            .also { node -> node.children.addAll(children) }
     }
 
     private data class RawSpan(
