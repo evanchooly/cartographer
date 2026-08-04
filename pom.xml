@@ -6,7 +6,7 @@
     <parent>
         <groupId>com.antwerkz</groupId>
         <artifactId>antwerkz-parent</artifactId>
-        <version>70</version>
+        <version>73</version>
     </parent>
 
     <artifactId>cartographer</artifactId>
@@ -14,13 +14,13 @@
     <packaging>pom</packaging>
 
     <properties>
-        <kotlin.version>2.3.20</kotlin.version>
+        <kotlin.version>2.4.10</kotlin.version>
         <kotlin.compiler.jvmTarget>17</kotlin.compiler.jvmTarget>
         <maven.compiler.source>17</maven.compiler.source>
         <maven.compiler.target>17</maven.compiler.target>
-        <bytebuddy.version>1.15.10</bytebuddy.version>
-        <junit.version>5.12.2</junit.version>
-        <opentelemetry.version>1.62.0</opentelemetry.version>
+        <bytebuddy.version>1.18.11</bytebuddy.version>
+        <junit.version>6.1.2</junit.version>
+        <opentelemetry.version>1.64.0</opentelemetry.version>
         <maven.version>4.0.0-rc-5</maven.version>
     </properties>
 
