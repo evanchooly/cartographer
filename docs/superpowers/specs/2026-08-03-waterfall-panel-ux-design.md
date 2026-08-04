@@ -13,7 +13,8 @@ renders the trace/span waterfall view in the tool window. It currently:
   always squeezed to fit the viewport — a horizontal scrollbar can never appear, even when content
   (e.g. long labels, many indent levels) can't be displayed legibly.
 - Only wires plain mouse-wheel scrolling (via `JBScrollPane` default behavior); there is no
-  Ctrl+wheel handling.
+  Ctrl+wheel handling, and there is no concept of zoom — bars are always scaled to fit whatever
+  width is available.
 - Single-click on a span row selects it and shows `SpanDetailPanel`, which has a "→ Go to source"
   button wired to `SourceNavigator.navigate`. There's no way to jump to source directly from the
   waterfall.
@@ -28,15 +29,19 @@ This spec covers four related UX fixes to that panel.
    pixel constants, so rows never clip regardless of theme font size.
 
 2. **Scrollbars instead of squeezing.** When the waterfall's content (label column + bar area)
-   cannot be displayed legibly within the viewport — either because the viewport is narrow or
-   because a larger theme font increases the label column width — a horizontal scrollbar appears
-   via the existing `JBScrollPane`, rather than compressing bars/labels into unreadable widths.
-   Vertical scrolling for tall content (many spans) already works today via row-count × row-height
-   inside `JBScrollPane` and is preserved as-is (with the new font-aware `ROW_HEIGHT`).
+   cannot be displayed legibly within the viewport — because the viewport is narrow, because a
+   larger theme font increases the label column width, or because the user has zoomed in — a
+   horizontal scrollbar appears via the existing `JBScrollPane`, rather than compressing
+   bars/labels into unreadable widths. Vertical scrolling for tall content (many spans) already
+   works today via row-count × row-height inside `JBScrollPane` and is preserved as-is (with the
+   new font-aware `ROW_HEIGHT`).
 
-3. **Ctrl+mouse-wheel horizontal pan.** Holding Ctrl while scrolling the mouse wheel over the
-   waterfall pans the view horizontally instead of vertically. Plain wheel scrolling (no Ctrl)
-   continues to scroll vertically as today.
+3. **Ctrl+mouse-wheel zoom.** Holding Ctrl while scrolling the mouse wheel over the waterfall
+   zooms the timeline in or out (scrolling up/away zooms in, down/toward zooms out), increasing or
+   decreasing how many pixels represent a given time span. Zooming in can make the bar area wider
+   than the viewport, at which point the horizontal scrollbar (requirement 2) is how the rest of
+   the timeline is reached. Plain wheel scrolling (no Ctrl) continues to scroll vertically as
+   today, unaffected by zoom level.
 
 4. **Double-click to open source.** Double-clicking a span row in the waterfall navigates directly
    to that span's source method via `SourceNavigator.navigate`, using the same class/method
@@ -65,25 +70,33 @@ This spec covers four related UX fixes to that panel.
   long name blowing out the column) — replacing the fixed `200`.
 - Introduce a `MIN_BAR_AREA_WIDTH` constant (the minimum pixel width below which bars/ticks stop
   being legible, e.g. `300`).
-- `inner.getPreferredSize()` width becomes
-  `max(parent?.width ?: (LABEL_WIDTH + MIN_BAR_AREA_WIDTH), LABEL_WIDTH + MIN_BAR_AREA_WIDTH)`.
-  In practice: if the viewport is wide enough, content stretches to fill it (today's behavior,
-  bars scale to available width). If the viewport is narrower than `LABEL_WIDTH + MIN_BAR_AREA_WIDTH`,
-  the preferred width exceeds the viewport width and `JBScrollPane` shows a horizontal scrollbar
-  instead of compressing bars into unreadable slivers.
+- Add a `zoomFactor: Double` field on `WaterfallPanel`, default `1.0`, clamped to a fixed range
+  (e.g. `1.0..20.0` — `1.0` means "fit to viewport", today's behavior; zooming out past fit isn't
+  useful since bars would just shrink into the same squeeze this spec is removing).
+- `inner.getPreferredSize()` width becomes:
+  `LABEL_WIDTH + max(MIN_BAR_AREA_WIDTH, (parent?.width ?: default) - LABEL_WIDTH) * zoomFactor`.
+  At `zoomFactor == 1.0` this reproduces today's fit-to-viewport behavior (no scrollbar). As
+  `zoomFactor` increases, preferred width grows past the viewport width and `JBScrollPane` shows a
+  horizontal scrollbar. A larger theme font (wider `LABEL_WIDTH`) or a narrow viewport can also
+  push preferred width past `MIN_BAR_AREA_WIDTH`'s floor even at `zoomFactor == 1.0`.
 - The bar-scaling math in `paintWaterfall` (`barAreaWidth`, `available`, `barX`, `barW`) is
-  unchanged — it already scales spans to whatever `barAreaWidth` it's given; it just may now be
-  given a width larger than the visible viewport, which the scroll pane handles.
+  unchanged — it already scales spans to whatever `barAreaWidth` it's given (computed from
+  `inner.width`, which now reflects the zoomed preferred width once laid out by the scroll pane).
 
-### Ctrl+mouse-wheel horizontal pan
+### Ctrl+mouse-wheel zoom
 
 - Add a `MouseWheelListener` to `inner` (added in `init`, alongside the existing
   `MouseAdapter`). On `mouseWheelMoved(e)`:
-  - If `e.isControlDown`, adjust `scroll.horizontalScrollBar.value` by
-    `e.unitsToScroll` (or `e.wheelRotation * scrollAmount`) and call `e.consume()` so the
-    default vertical handling doesn't also fire.
+  - If `e.isControlDown`: update `zoomFactor` multiplicatively by a fixed step per notch (e.g.
+    `*1.1` per notch scrolled up/away, `/1.1` per notch scrolled down/toward — `e.wheelRotation`
+    gives direction), clamp to the zoom range, call `inner.revalidate()` and `inner.repaint()` so
+    `getPreferredSize()` picks up the new width, and call `e.consume()` so default vertical
+    scrolling doesn't also fire.
   - Otherwise, do nothing (let the event propagate to `JBScrollPane`'s default vertical
     scrolling, unchanged).
+- Zoom is anchored at the current viewport scroll position (no attempt to keep the point under
+  the cursor fixed) — simplest behavior that satisfies the requirement; cursor-anchored zoom can
+  be a follow-up if it proves annoying in practice.
 
 ### Double-click to open source
 
@@ -107,13 +120,18 @@ This spec covers four related UX fixes to that panel.
   - Double-click on a row triggers `onSpanActivated` with the correct `SpanNode`.
   - Single-click continues to trigger only `onSpanSelected`.
   - `SpanDetailPanel` no longer exposes a "Go to source" button.
+  - Ctrl+wheel zoom updates `zoomFactor` in the expected direction and stays within the clamped
+    range (e.g. repeated zoom-in eventually saturates at the max instead of growing unbounded).
+  - Plain wheel (no Ctrl) does not change `zoomFactor`.
 - Font/layout/scrollbar behavior is visual and not practically unit-testable; verify manually by
   running the plugin (`./gradlew runIde` or equivalent) with a changed IDE font size and a narrow
   tool window.
 
 ## Out of scope
 
-- Zooming the timeline (changing time-to-pixel scale). Ctrl+wheel is pan-only, per explicit
-  clarification.
+- Cursor-anchored zoom (keeping the timeline point under the mouse fixed while zooming). Zoom
+  anchors at the current scroll position instead.
+- Any other way to change zoom (toolbar buttons, keyboard shortcuts, reset-to-fit control) beyond
+  Ctrl+wheel.
 - Changes to `TraceListPanel` or `SpanDetailPanel` layout beyond removing the button.
 - Changes to `SourceNavigator`'s resolution logic — it's reused as-is.
