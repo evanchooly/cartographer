@@ -5,18 +5,15 @@ import com.intellij.ui.JBColor
 import java.awt.BorderLayout
 import java.awt.Color
 import java.awt.FlowLayout
-import javax.swing.JButton
 import javax.swing.JLabel
 import javax.swing.JPanel
 import javax.swing.border.EmptyBorder
 
-class SpanDetailPanel(private val onGoToSource: (SpanNode) -> Unit) : JPanel(BorderLayout()) {
+class SpanDetailPanel : JPanel(BorderLayout()) {
 
     private val nameLabel = JLabel().apply { foreground = Color(0xe8, 0xa8, 0x38) }
     private val durationLabel = JLabel()
     private val attrsLabel = JLabel()
-    private val goToSourceButton = JButton("→ Go to source")
-    private var currentSpan: SpanNode? = null
 
     init {
         border = EmptyBorder(4, 8, 4, 8)
@@ -29,15 +26,11 @@ class SpanDetailPanel(private val onGoToSource: (SpanNode) -> Unit) : JPanel(Bor
                 add(nameLabel)
                 add(durationLabel)
                 add(attrsLabel)
-                add(goToSourceButton)
             }
         add(content, BorderLayout.CENTER)
-
-        goToSourceButton.addActionListener { currentSpan?.let { onGoToSource(it) } }
     }
 
     fun show(span: SpanNode) {
-        currentSpan = span
         nameLabel.text = span.simpleName
         durationLabel.text = "%.0fms".format(span.durationMs)
         attrsLabel.text =
@@ -51,7 +44,6 @@ class SpanDetailPanel(private val onGoToSource: (SpanNode) -> Unit) : JPanel(Bor
     }
 
     fun clear() {
-        currentSpan = null
         isVisible = false
     }
 }

@@ -29,7 +29,7 @@ class WaterfallPanelTest {
 
     @Test
     fun `preferred height matches font metrics based row and axis height`() {
-        val panel = WaterfallPanel {}
+        val panel = WaterfallPanel(onSpanSelected = {}, onSpanActivated = {})
         SwingUtilities.invokeAndWait {
             panel.load(listOf(span("com.example.Foo.bar", 0, 1_000_000)))
         }
@@ -44,7 +44,7 @@ class WaterfallPanelTest {
     @Test
     fun `single click selects the span under the cursor`() {
         var selected: SpanNode? = null
-        val panel = WaterfallPanel { selected = it }
+        val panel = WaterfallPanel(onSpanSelected = { selected = it }, onSpanActivated = {})
         val root = span("com.example.Foo.bar", 0, 1_000_000)
         SwingUtilities.invokeAndWait { panel.load(listOf(root)) }
 
@@ -76,7 +76,7 @@ class WaterfallPanelTest {
     @Test
     fun `click below all rows selects nothing`() {
         var selected: SpanNode? = null
-        val panel = WaterfallPanel { selected = it }
+        val panel = WaterfallPanel(onSpanSelected = { selected = it }, onSpanActivated = {})
         SwingUtilities.invokeAndWait {
             panel.load(listOf(span("com.example.Foo.bar", 0, 1_000_000)))
         }
@@ -103,7 +103,7 @@ class WaterfallPanelTest {
 
     @Test
     fun `ctrl wheel zooms in and widens the preferred size`() {
-        val panel = WaterfallPanel {}
+        val panel = WaterfallPanel(onSpanSelected = {}, onSpanActivated = {})
         SwingUtilities.invokeAndWait {
             panel.load(listOf(span("com.example.Foo.bar", 0, 1_000_000)))
         }
@@ -133,7 +133,7 @@ class WaterfallPanelTest {
 
     @Test
     fun `plain wheel does not change preferred width`() {
-        val panel = WaterfallPanel {}
+        val panel = WaterfallPanel(onSpanSelected = {}, onSpanActivated = {})
         SwingUtilities.invokeAndWait {
             panel.load(listOf(span("com.example.Foo.bar", 0, 1_000_000)))
         }
@@ -159,5 +159,78 @@ class WaterfallPanelTest {
         }
 
         assertEquals(widthBefore, inner.preferredSize.width)
+    }
+
+    @Test
+    fun `double click selects and activates the span`() {
+        var selected: SpanNode? = null
+        var activated: SpanNode? = null
+        val panel =
+            WaterfallPanel(onSpanSelected = { selected = it }, onSpanActivated = { activated = it })
+        val root = span("com.example.Foo.bar", 0, 1_000_000)
+        SwingUtilities.invokeAndWait { panel.load(listOf(root)) }
+
+        val inner = innerPanelOf(panel)
+        val fm = inner.getFontMetrics(inner.font)
+        val y = (fm.height + 10) + (fm.height + 8) / 2
+
+        SwingUtilities.invokeAndWait {
+            inner.dispatchEvent(
+                MouseEvent(
+                    inner,
+                    MouseEvent.MOUSE_CLICKED,
+                    System.currentTimeMillis(),
+                    0,
+                    10,
+                    y,
+                    1,
+                    false
+                )
+            )
+            inner.dispatchEvent(
+                MouseEvent(
+                    inner,
+                    MouseEvent.MOUSE_CLICKED,
+                    System.currentTimeMillis(),
+                    0,
+                    10,
+                    y,
+                    2,
+                    false
+                )
+            )
+        }
+
+        assertEquals(root, selected)
+        assertEquals(root, activated)
+    }
+
+    @Test
+    fun `single click does not activate the span`() {
+        var activated: SpanNode? = null
+        val panel = WaterfallPanel(onSpanSelected = {}, onSpanActivated = { activated = it })
+        val root = span("com.example.Foo.bar", 0, 1_000_000)
+        SwingUtilities.invokeAndWait { panel.load(listOf(root)) }
+
+        val inner = innerPanelOf(panel)
+        val fm = inner.getFontMetrics(inner.font)
+        val y = (fm.height + 10) + (fm.height + 8) / 2
+
+        SwingUtilities.invokeAndWait {
+            inner.dispatchEvent(
+                MouseEvent(
+                    inner,
+                    MouseEvent.MOUSE_CLICKED,
+                    System.currentTimeMillis(),
+                    0,
+                    10,
+                    y,
+                    1,
+                    false
+                )
+            )
+        }
+
+        assertEquals(null, activated)
     }
 }

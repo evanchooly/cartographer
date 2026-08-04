@@ -18,9 +18,13 @@ import javax.swing.event.AncestorListener
 class CartographerToolWindowFactory : ToolWindowFactory {
 
     override fun createToolWindowContent(project: Project, toolWindow: ToolWindow) {
-        val detailPanel = SpanDetailPanel { span -> SourceNavigator.navigate(project, span.name) }
+        val detailPanel = SpanDetailPanel()
 
-        val waterfallPanel = WaterfallPanel { span -> detailPanel.show(span) }
+        val waterfallPanel =
+            WaterfallPanel(
+                onSpanSelected = { span -> detailPanel.show(span) },
+                onSpanActivated = { span -> SourceNavigator.navigate(project, span.name) }
+            )
 
         val listPanel = TraceListPanel { file ->
             detailPanel.clear()

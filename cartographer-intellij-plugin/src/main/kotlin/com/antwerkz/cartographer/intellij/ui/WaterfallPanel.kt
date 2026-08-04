@@ -34,7 +34,10 @@ private const val ZOOM_STEP = 1.1
 private const val MIN_ZOOM = 1.0
 private const val MAX_ZOOM = 20.0
 
-class WaterfallPanel(private val onSpanSelected: (SpanNode) -> Unit) : JPanel() {
+class WaterfallPanel(
+    private val onSpanSelected: (SpanNode) -> Unit,
+    private val onSpanActivated: (SpanNode) -> Unit
+) : JPanel() {
 
     private var flatSpans: List<SpanNode> = emptyList()
     var selectedSpan: SpanNode? = null
@@ -76,9 +79,13 @@ class WaterfallPanel(private val onSpanSelected: (SpanNode) -> Unit) : JPanel() 
                     val fm = inner.getFontMetrics(inner.font)
                     val row = (e.y - axisHeight(fm)) / rowHeight(fm)
                     if (row in flatSpans.indices) {
-                        selectedSpan = flatSpans[row]
+                        val span = flatSpans[row]
+                        selectedSpan = span
                         inner.repaint()
-                        onSpanSelected(selectedSpan!!)
+                        onSpanSelected(span)
+                        if (e.clickCount == 2) {
+                            onSpanActivated(span)
+                        }
                     }
                 }
             }
