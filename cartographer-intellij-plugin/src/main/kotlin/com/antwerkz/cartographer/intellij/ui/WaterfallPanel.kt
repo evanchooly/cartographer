@@ -12,6 +12,7 @@ import java.awt.Graphics2D
 import java.awt.RenderingHints
 import java.awt.event.MouseAdapter
 import java.awt.event.MouseEvent
+import java.awt.event.MouseWheelEvent
 import javax.swing.JPanel
 import javax.swing.SwingUtilities
 import kotlin.math.max
@@ -77,13 +78,14 @@ class WaterfallPanel(
             object : MouseAdapter() {
                 override fun mouseClicked(e: MouseEvent) {
                     val fm = inner.getFontMetrics(inner.font)
+                    if (e.y < axisHeight(fm)) return
                     val row = (e.y - axisHeight(fm)) / rowHeight(fm)
                     if (row in flatSpans.indices) {
                         val span = flatSpans[row]
                         selectedSpan = span
                         inner.repaint()
                         onSpanSelected(span)
-                        if (e.clickCount == 2) {
+                        if (e.clickCount == 2 && SwingUtilities.isLeftMouseButton(e)) {
                             onSpanActivated(span)
                         }
                     }
@@ -98,6 +100,28 @@ class WaterfallPanel(
                 inner.revalidate()
                 inner.repaint()
                 e.consume()
+            } else {
+                // Registering a MouseWheelListener on `inner` stops AWT from forwarding
+                // unhandled wheel events up to the scroll pane's own handler, so plain
+                // (non-zoom) scrolling has to be re-dispatched to it explicitly here.
+                scroll.dispatchEvent(
+                    MouseWheelEvent(
+                        scroll,
+                        e.id,
+                        e.`when`,
+                        e.modifiersEx,
+                        e.x,
+                        e.y,
+                        e.xOnScreen,
+                        e.yOnScreen,
+                        e.clickCount,
+                        e.isPopupTrigger,
+                        e.scrollType,
+                        e.scrollAmount,
+                        e.wheelRotation,
+                        e.preciseWheelRotation
+                    )
+                )
             }
         }
     }
@@ -106,6 +130,7 @@ class WaterfallPanel(
         assert(SwingUtilities.isEventDispatchThread()) { "load() must be called on EDT" }
         flatSpans = flatten(roots)
         selectedSpan = null
+        zoomFactor = MIN_ZOOM
         if (flatSpans.isNotEmpty()) {
             rootStartNano = flatSpans.minOf { it.startNano }
             totalNano = max(1L, flatSpans.maxOf { it.endNano } - rootStartNano)
@@ -167,8 +192,9 @@ class WaterfallPanel(
             val y = axisHeight + i * rowHeight
             val indent = span.depth * INDENT_PX
 
-            // Label (draw outside clip by temporarily removing it)
-            g.clip = null
+            // Label (clipped to the label column so long names truncate instead of
+            // bleeding into the bar area)
+            g.setClip(0, y, labelWidth, rowHeight)
             g.color = if (span == selectedSpan) JBColor.foreground() else JBColor.GRAY
             val label = span.simpleName
             val labelX = labelWidth - LABEL_PADDING - fm.stringWidth(label)
