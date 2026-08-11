@@ -1,0 +1,28 @@
+<idea-plugin>
+    <id>com.antwerkz.cartographer</id>
+    <name>Cartographer</name>
+    <vendor>antwerkz</vendor>
+    <description>Visualizes Cartographer test trace output as a Jaeger-style waterfall.</description>
+
+    <depends>com.intellij.modules.platform</depends>
+    <depends>com.intellij.modules.java</depends>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <toolWindow
+            id="Cartographer"
+            anchor="bottom"
+            factoryClass="com.antwerkz.cartographer.intellij.CartographerToolWindowFactory"
+        />
+        <notificationGroup id="Cartographer" displayType="BALLOON" isLogByDefault="true"/>
+    </extensions>
+
+    <actions>
+        <action id="com.antwerkz.cartographer.SetupCartographerAction"
+                class="com.antwerkz.cartographer.intellij.SetupCartographerAction"
+                text="Add Cartographer Profile"
+                description="Insert a Cartographer Maven profile into this pom.xml">
+            <add-to-group group-id="ProjectViewPopupMenu" anchor="last"/>
+            <add-to-group group-id="EditorPopupMenu" anchor="last"/>
+        </action>
+    </actions>
+</idea-plugin>

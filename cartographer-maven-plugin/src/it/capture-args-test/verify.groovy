@@ -1,0 +1,21 @@
+import java.nio.file.*
+
+def cartographerDir = new File(basedir, "target/cartographer")
+assert cartographerDir.exists() : "target/cartographer directory should exist"
+
+def traceFiles = cartographerDir.listFiles { f -> f.name.endsWith(".json") && !f.name.startsWith("cartographer-run") }
+assert traceFiles != null && traceFiles.length == 1 :
+    "Expected 1 trace file (one @Test), found: ${traceFiles?.length ?: 0}"
+
+def traceFile = traceFiles[0]
+assert traceFile.length() > 0 : "Trace file should be non-empty"
+
+// Parse the protobuf binary and verify arg.0 and arg.1 attributes exist
+// The OTLP protobuf format encodes strings as UTF-8, so we can search for them
+def bytes = traceFile.bytes
+def content = new String(bytes, "ISO-8859-1")
+assert content.contains("arg.0") : "Trace should contain arg.0 attribute"
+assert content.contains("arg.1") : "Trace should contain arg.1 attribute"
+assert content.contains("World") : "Trace should contain arg.0 value 'World'"
+
+true

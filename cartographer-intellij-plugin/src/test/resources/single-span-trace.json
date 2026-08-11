@@ -1,0 +1,16 @@
+{
+  "resourceSpans": [{
+    "scopeSpans": [{
+      "spans": [{
+        "traceId": "ff300761940ca40037cc877cd85926e4",
+        "spanId": "217e1b24c8c1e9e6",
+        "name": "com.example.CalculatorTest.<init>",
+        "kind": 1,
+        "startTimeUnixNano": "1778565909654849675",
+        "endTimeUnixNano": "1778565909654857234",
+        "attributes": [],
+        "events": [], "links": [], "status": {}, "flags": 259
+      }]
+    }]
+  }]
+}

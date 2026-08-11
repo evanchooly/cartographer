@@ -1,0 +1,43 @@
+{
+  "resourceSpans": [{
+    "scopeSpans": [{
+      "spans": [
+        {
+          "traceId": "e8bccf8752d06b1bd5b8059410ebe54a",
+          "spanId": "b76fccd299027ead",
+          "parentSpanId": "037a76a8444ea4d7",
+          "name": "com.example.Greeter.<init>",
+          "kind": 1,
+          "startTimeUnixNano": "1778565913055134852",
+          "endTimeUnixNano": "1778565913055150093",
+          "attributes": [],
+          "events": [], "links": [], "status": {}, "flags": 259
+        },
+        {
+          "traceId": "e8bccf8752d06b1bd5b8059410ebe54a",
+          "spanId": "d39238dd043bc2bd",
+          "parentSpanId": "037a76a8444ea4d7",
+          "name": "com.example.Greeter.greet",
+          "kind": 1,
+          "startTimeUnixNano": "1778565913055202389",
+          "endTimeUnixNano": "1778565913057630243",
+          "attributes": [
+            {"key": "arg.0", "value": {"stringValue": "World"}},
+            {"key": "arg.1", "value": {"stringValue": "2"}}
+          ],
+          "events": [], "links": [], "status": {}, "flags": 259
+        },
+        {
+          "traceId": "e8bccf8752d06b1bd5b8059410ebe54a",
+          "spanId": "037a76a8444ea4d7",
+          "name": "com.example.GreeterTest.testGreet",
+          "kind": 1,
+          "startTimeUnixNano": "1778565913043578780",
+          "endTimeUnixNano": "1778565913058995258",
+          "attributes": [],
+          "events": [], "links": [], "status": {}, "flags": 259
+        }
+      ]
+    }]
+  }]
+}
