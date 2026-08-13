@@ -56,7 +56,7 @@ Add the plugin under a profile so it only runs when you ask for it:
         <plugin>
           <groupId>com.antwerkz</groupId>
           <artifactId>cartographer-maven-plugin</artifactId>
-          <version>0.9.0-SNAPSHOT</version>
+          <version>0.9.1-SNAPSHOT</version>
           <configuration>
             <packages>
               <package>com.example</package>
