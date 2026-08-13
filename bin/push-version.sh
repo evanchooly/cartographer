@@ -7,8 +7,7 @@ then
 	exit 1
 fi
 
-RELEASE=$( jbang --quiet `dirname ${0}`/NextVersion.java current )
-DEVELOP=$( jbang --quiet `dirname ${0}`/NextVersion.java )
+read -r RELEASE DEVELOP <<< "$( jbang --quiet `dirname ${0}`/NextVersion.java )"
 
 echo "Release version = ${RELEASE}"
 echo "Next version    = ${DEVELOP}"

@@ -16,8 +16,7 @@ import java.io.FileReader;
  * pom.xml's current version. Companion to UpdateVersion.java for bin/push-version.sh.
  *
  * Usage:
- *   jbang bin/NextVersion.java           prints the next development version
- *   jbang bin/NextVersion.java current   prints the release version
+ *   jbang bin/NextVersion.java   prints "<release> <next-development>" on one line
  */
 class NextVersion {
     public static void main(String[] args) throws Exception {
@@ -35,10 +34,6 @@ class NextVersion {
             next = (Integer.parseInt(release) + 1) + "-SNAPSHOT";
         }
 
-        if (args.length == 0) {
-            System.out.println(next);
-        } else if (args[0].equals("current")) {
-            System.out.println(release);
-        }
+        System.out.println(release + " " + next);
     }
 }
