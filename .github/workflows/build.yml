@@ -72,6 +72,7 @@ jobs:
   Release:
     needs:
       - Matrix
+      - Build
     if: needs.Matrix.outputs.releasable == 'true'
     uses: evanchooly/workflows/.github/workflows/jreleaser.yml@master
     concurrency:
