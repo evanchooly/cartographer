@@ -13,6 +13,10 @@
     <version>0.9.2-SNAPSHOT</version>
     <packaging>pom</packaging>
 
+    <name>Cartographer</name>
+    <description>A JVM agent and Maven plugin that instruments test runs with OpenTelemetry spans, producing a per-test call-graph trace for visualization in Jaeger or the bundled IntelliJ waterfall view.</description>
+    <url>https://github.com/evanchooly/cartographer</url>
+
     <scm>
         <connection>scm:git:git@github.com:evanchooly/cartographer.git</connection>
         <developerConnection>scm:git:git@github.com:evanchooly/cartographer.git</developerConnection>

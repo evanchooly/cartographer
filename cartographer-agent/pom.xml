@@ -13,6 +13,10 @@
     <artifactId>cartographer-agent</artifactId>
     <packaging>jar</packaging>
 
+    <name>Cartographer Agent</name>
+    <description>JVM agent that instruments non-synthetic methods with OpenTelemetry spans during test runs.</description>
+    <url>https://github.com/evanchooly/cartographer/tree/main/cartographer-agent</url>
+
     <dependencies>
         <dependency>
             <groupId>org.jetbrains.kotlin</groupId>

@@ -13,6 +13,10 @@
     <artifactId>cartographer-maven-plugin</artifactId>
     <packaging>maven-plugin</packaging>
 
+    <name>Cartographer Maven Plugin</name>
+    <description>Maven plugin that wires the Cartographer agent into a project's test JVM via -javaagent.</description>
+    <url>https://github.com/evanchooly/cartographer/tree/main/cartographer-maven-plugin</url>
+
     <dependencies>
         <dependency>
             <groupId>org.apache.maven</groupId>
