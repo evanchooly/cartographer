@@ -7,7 +7,7 @@ plugins {
 }
 
 group = "com.antwerkz"
-version = "0.9.2"
+version = "0.9.3-SNAPSHOT"
 
 repositories {
     mavenCentral()

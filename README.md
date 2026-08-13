@@ -56,7 +56,7 @@ Wrap the plugin in a profile so you can enable it on demand without slowing down
         <plugin>
           <groupId>com.antwerkz</groupId>
           <artifactId>cartographer-maven-plugin</artifactId>
-          <version>0.9.2</version>
+          <version>0.9.3-SNAPSHOT</version>
           <configuration>
             <packages>
               <package>com.example</package>  <!-- root package(s) to instrument -->

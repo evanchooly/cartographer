@@ -10,7 +10,7 @@
     </parent>
 
     <artifactId>cartographer</artifactId>
-    <version>0.9.2</version>
+    <version>0.9.3-SNAPSHOT</version>
     <packaging>pom</packaging>
 
     <name>Cartographer</name>
