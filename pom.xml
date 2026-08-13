@@ -13,6 +13,35 @@
     <version>1.0.0-SNAPSHOT</version>
     <packaging>pom</packaging>
 
+    <scm>
+        <connection>scm:git:git@github.com:evanchooly/cartographer.git</connection>
+        <developerConnection>scm:git:git@github.com:evanchooly/cartographer.git</developerConnection>
+        <url>https://github.com/evanchooly/cartographer</url>
+    </scm>
+
+    <repositories>
+        <repository>
+            <id>central</id>
+            <name>Maven Central</name>
+            <layout>default</layout>
+            <url>https://repo1.maven.org/maven2</url>
+            <snapshots>
+                <enabled>false</enabled>
+            </snapshots>
+        </repository>
+        <repository>
+            <name>Central Portal Snapshots</name>
+            <id>central-portal-snapshots</id>
+            <url>https://central.sonatype.com/repository/maven-snapshots/</url>
+            <releases>
+                <enabled>false</enabled>
+            </releases>
+            <snapshots>
+                <enabled>true</enabled>
+            </snapshots>
+        </repository>
+    </repositories>
+
     <properties>
         <kotlin.version>2.4.10</kotlin.version>
         <dokka.version>2.2.0</dokka.version>
@@ -21,15 +50,9 @@
         <maven.compiler.target>17</maven.compiler.target>
         <bytebuddy.version>1.18.11</bytebuddy.version>
         <junit.version>6.1.3</junit.version>
-        <opentelemetry.version>1.65.0</opentelemetry.version>
+        <opentelemetry.version>1.60.0</opentelemetry.version>
         <maven.version>4.0.0-rc-5</maven.version>
     </properties>
-
-    <scm>
-        <connection>scm:git:git@github.com:evanchooly/cartographer.git</connection>
-        <developerConnection>scm:git:git@github.com:evanchooly/cartographer.git</developerConnection>
-        <url>https://github.com/evanchooly/cartographer</url>
-    </scm>
 
     <dependencyManagement>
         <dependencies>
