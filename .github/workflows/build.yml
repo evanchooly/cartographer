@@ -4,6 +4,8 @@ on:
   push:
     branches-ignore:
       - 'dependabot/**'
+    tags:
+      - '*'
   workflow_dispatch:
 
 concurrency:
@@ -46,3 +48,41 @@ jobs:
         with:
           name: cartographer-intellij-plugin
           path: cartographer-intellij-plugin/build/distributions/*.zip
+
+  Matrix:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Is releasable branch
+        id: releasable
+        run: |
+          if [ "${{ github.event.ref }}" == 'refs/heads/master' ] \
+            || [ "${{ github.event.ref }}" == 'refs/heads/main' ] \
+            || [[ "${{ github.event.ref }}" =~ ^refs/heads/[0-9]+\.[0-9]+\.x$ ]] \
+            || [[ "${{ github.event.ref }}" =~ ^refs/tags/v[0-9]+\.[0-9]+.[0-9]+$ ]]
+          then
+            echo "releasable=true" >> $GITHUB_OUTPUT
+          else
+            echo "releasable=false" >> $GITHUB_OUTPUT
+          fi
+
+    outputs:
+      releasable: ${{ steps.releasable.outputs.releasable }}
+
+  Release:
+    needs:
+      - Matrix
+    if: needs.Matrix.outputs.releasable == 'true'
+    uses: evanchooly/workflows/.github/workflows/jreleaser.yml@master
+    concurrency:
+      group: build-${{ github.ref }}
+      cancel-in-progress: true
+    with:
+      java: 17
+    secrets:
+      GH_PUSH_TOKEN       : ${{ secrets.GH_PUSH_TOKEN }}
+      MAVEN_GPG_PASSPHRASE      : ${{ secrets.MAVEN_GPG_PASSPHRASE }}
+      GPG_PUBLIC_KEY      : ${{ secrets.GPG_PUBLIC_KEY }}
+      GPG_PRIVATE_KEY     : ${{ secrets.GPG_PRIVATE_KEY }}
+      SONATYPE_USERNAME   : ${{ secrets.SONATYPE_USERNAME }}
+      SONATYPE_TOKEN   : ${{ secrets.SONATYPE_TOKEN }}
