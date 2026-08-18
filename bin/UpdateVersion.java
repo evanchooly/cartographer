@@ -155,6 +155,11 @@ class UpdateVersion {
     }
 
     static void updateReadmes(Path root, String newVersion) throws IOException {
+        if (newVersion.endsWith("-SNAPSHOT")) {
+            // Don't update README.md examples to a snapshot version, since those are meant to be
+            // copy-pasted into a real project and snapshots aren't published to Maven Central.
+            return;
+        }
         List<Path> files;
         try (Stream<Path> walk = Files.walk(root)) {
             files = walk
