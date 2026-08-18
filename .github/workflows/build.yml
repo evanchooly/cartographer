@@ -41,7 +41,7 @@ jobs:
 
       - name: Build IntelliJ Plugin
         working-directory: cartographer-intellij-plugin
-        run: ./gradlew buildPlugin --stacktrace
+        run: ./gradlew buildPlugin signPlugin --stacktrace
 
       - name: Upload IntelliJ Plugin
         uses: actions/upload-artifact@v7
