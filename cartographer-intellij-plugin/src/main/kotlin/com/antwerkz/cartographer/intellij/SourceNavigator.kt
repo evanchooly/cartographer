@@ -2,7 +2,7 @@ package com.antwerkz.cartographer.intellij
 
 import com.intellij.codeInsight.hint.HintManager
 import com.intellij.openapi.application.ApplicationManager
-import com.intellij.openapi.application.ReadAction
+import com.intellij.openapi.application.runReadAction
 import com.intellij.openapi.fileEditor.FileEditorManager
 import com.intellij.openapi.project.Project
 import com.intellij.pom.Navigatable
@@ -20,18 +20,17 @@ object SourceNavigator {
         if (methodName.isEmpty()) return
 
         ApplicationManager.getApplication().invokeLater {
-            val target: PsiElement? =
-                ReadAction.compute<PsiElement?, Throwable> {
-                    val psiFacade = JavaPsiFacade.getInstance(project)
-                    val psiClass =
-                        psiFacade.findClass(className, GlobalSearchScope.allScope(project))
-                            ?: return@compute null
-                    if (methodName == "<init>") {
-                        psiClass.constructors.firstOrNull() ?: psiClass
-                    } else {
-                        psiClass.findMethodsByName(methodName, true).firstOrNull() ?: psiClass
-                    }
+            val target: PsiElement? = runReadAction {
+                val psiFacade = JavaPsiFacade.getInstance(project)
+                val psiClass =
+                    psiFacade.findClass(className, GlobalSearchScope.allScope(project))
+                        ?: return@runReadAction null
+                if (methodName == "<init>") {
+                    psiClass.constructors.firstOrNull() ?: psiClass
+                } else {
+                    psiClass.findMethodsByName(methodName, true).firstOrNull() ?: psiClass
                 }
+            }
 
             if (target == null) {
                 val editor = FileEditorManager.getInstance(project).selectedTextEditor

@@ -1,8 +1,16 @@
 <idea-plugin>
     <id>com.antwerkz.cartographer</id>
     <name>Cartographer</name>
-    <vendor>antwerkz</vendor>
-    <description>Visualizes Cartographer test trace output as a Jaeger-style waterfall.</description>
+    <vendor email="jlee@antwerkz.com" url="https://github.com/evanchooly/cartographer">antwerkz</vendor>
+    <description><![CDATA[
+        Cartographer visualizes OpenTelemetry trace output captured by the Cartographer Maven plugin
+        during test runs, rendering it as a waterfall directly inside the IDE. It also
+        provides an action to insert a Cartographer Maven profile into a pom.xml, and lets you jump
+        from a span in the waterfall to the source location that produced it.
+    ]]></description>
+    <change-notes><![CDATA[
+        Initial release.
+    ]]></change-notes>
 
     <depends>com.intellij.modules.platform</depends>
     <depends>com.intellij.modules.java</depends>

@@ -1,6 +1,5 @@
 package com.antwerkz.cartographer.intellij
 
-import com.intellij.ide.plugins.PluginManagerCore
 import com.intellij.notification.NotificationGroupManager
 import com.intellij.notification.NotificationType
 import com.intellij.openapi.actionSystem.ActionUpdateThread
@@ -8,9 +7,9 @@ import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.CommonDataKeys
 import com.intellij.openapi.application.ApplicationManager
-import com.intellij.openapi.extensions.PluginId
 import com.intellij.openapi.vfs.LocalFileSystem
 import java.io.File
+import java.util.Properties
 
 class SetupCartographerAction : AnAction() {
 
@@ -85,9 +84,7 @@ class SetupCartographerAction : AnAction() {
     }
 
     private fun buildProfileXml(resolvedPackages: String?): String {
-        val version =
-            PluginManagerCore.getPlugin(PluginId.getId("com.antwerkz.cartographer"))?.version
-                ?: "LATEST"
+        val version = pluginVersion()
         val packagesContent =
             if (resolvedPackages != null) {
                 resolvedPackages
@@ -135,6 +132,13 @@ $packagesContent
         </plugins>
       </build>
     </profile>"""
+    }
+
+    private fun pluginVersion(): String {
+        val stream =
+            javaClass.classLoader.getResourceAsStream("cartographer-plugin.properties")
+                ?: return "LATEST"
+        return stream.use { Properties().apply { load(it) }.getProperty("version") ?: "LATEST" }
     }
 
     private fun insertProfile(pom: File, profileXml: String) {

@@ -37,8 +37,29 @@ kotlin {
     jvmToolchain(17)
 }
 
+tasks.processResources {
+    filesMatching("cartographer-plugin.properties") { expand("version" to project.version) }
+}
+
 intellijPlatform {
     buildSearchableOptions = false
+
+    pluginConfiguration {
+        ideaVersion {
+            sinceBuild = "253"
+            untilBuild = provider { null }
+        }
+    }
+
+    signing {
+        certificateChain = providers.environmentVariable("CERTIFICATE_CHAIN")
+        privateKey = providers.environmentVariable("PRIVATE_KEY")
+        password = providers.environmentVariable("PRIVATE_KEY_PASSWORD")
+    }
+
+    publishing {
+        token = providers.environmentVariable("PUBLISH_TOKEN")
+    }
 }
 
 spotless {
