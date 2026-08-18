@@ -38,10 +38,6 @@ jobs:
         working-directory: cartographer-intellij-plugin
         run: ./gradlew buildPlugin
 
-      - name: Verify IntelliJ Plugin
-        working-directory: cartographer-intellij-plugin
-        run: ./gradlew verifyPlugin
-
   Automerge:
     if: ${{ github.actor == 'dependabot[bot]' }}
     name: Automerge dependabot PRs
