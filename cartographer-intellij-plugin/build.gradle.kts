@@ -52,13 +52,13 @@ intellijPlatform {
     }
 
     signing {
-        certificateChain = providers.environmentVariable("CERTIFICATE_CHAIN")
-        privateKey = providers.environmentVariable("PRIVATE_KEY")
-        password = providers.environmentVariable("PRIVATE_KEY_PASSWORD")
+        certificateChain = providers.environmentVariable("JETBRAINS_MARKETPLACE_CERTIFICATE_CHAIN")
+        privateKey = providers.environmentVariable("JETBRAINS_MARKETPLACE_PRIVATE_KEY")
+        password = providers.environmentVariable("JETBRAINS_MARKETPLACE_PRIVATE_KEY_PASSWORD")
     }
 
     publishing {
-        token = providers.environmentVariable("PUBLISH_TOKEN")
+        token = providers.environmentVariable("JETBRAINS_MARKETPLACE_TOKEN")
     }
 }
 

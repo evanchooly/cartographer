@@ -41,3 +41,9 @@ build/
 
 ### Superpowers SDD workspace ###
 /.superpowers/
+
+### Plugin signing secrets (never commit) ###
+/cartographer-intellij-plugin/signing/
+
+### Local tracking checklist, not for the repo ###
+/cartographer-intellij-plugin/PUBLISHING_CHECKLIST.md
