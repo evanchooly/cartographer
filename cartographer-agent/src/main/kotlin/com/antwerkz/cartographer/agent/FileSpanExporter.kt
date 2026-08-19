@@ -5,6 +5,7 @@ import io.opentelemetry.exporter.internal.otlp.traces.TraceRequestMarshaler
 import io.opentelemetry.sdk.common.CompletableResultCode
 import io.opentelemetry.sdk.trace.data.SpanData
 import io.opentelemetry.sdk.trace.export.SpanExporter
+import java.io.ByteArrayOutputStream
 import java.io.File
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
@@ -33,11 +34,19 @@ class FileSpanExporter(
         val safeName = testNameSupplier().replace(Regex("[^a-zA-Z0-9._-]"), "_")
         val outFile = File(outputDir, "$safeName.json")
 
+        val jsonBytes = ByteArrayOutputStream().also {
+            TraceRequestMarshaler.create(toWrite).writeJsonTo(it)
+        }.toByteArray()
+
+        val jsonFactory = JsonFactory()
         outFile.bufferedWriter().use { writer ->
-            val generator = JsonFactory().createGenerator(writer).setPrettyPrinter(
+            val generator = jsonFactory.createGenerator(writer).setPrettyPrinter(
                 com.fasterxml.jackson.core.util.DefaultPrettyPrinter()
             )
-            TraceRequestMarshaler.create(toWrite).writeJsonToGenerator(generator)
+            jsonFactory.createParser(jsonBytes).use { parser ->
+                parser.nextToken()
+                generator.copyCurrentStructure(parser)
+            }
             generator.close()
         }
 
