@@ -406,6 +406,32 @@ class WaterfallPanelTest {
     }
 
     @Test
+    fun `longer duration text reserves more width so it is not clipped`() {
+        // Regression test: duration labels are drawn after each bar (barX + barW + gap), but
+        // getPreferredSize() previously ignored their width entirely, so a bar ending near the
+        // right edge at the default zoom level clipped its duration text with no horizontal
+        // scrollbar available to reveal it.
+        val shortPanel = WaterfallPanel(onSpanSelected = {}, onSpanActivated = {})
+        SwingUtilities.invokeAndWait {
+            shortPanel.load(listOf(span("com.example.Foo.bar", 0, 1_000_000))) // "1ms"
+        }
+        val widthShort = innerPanelOf(shortPanel).preferredSize.width
+
+        val longPanel = WaterfallPanel(onSpanSelected = {}, onSpanActivated = {})
+        SwingUtilities.invokeAndWait {
+            longPanel.load(
+                listOf(span("com.example.Foo.bar", 0, 123_456_789_000_000)) // "123456789ms"
+            )
+        }
+        val widthLong = innerPanelOf(longPanel).preferredSize.width
+
+        assertTrue(
+            "a longer formatted duration string should widen the reserved trailing gutter",
+            widthLong > widthShort
+        )
+    }
+
+    @Test
     fun `repeated ctrl wheel zoom out floors at the min zoom`() {
         val panel = WaterfallPanel(onSpanSelected = {}, onSpanActivated = {})
         SwingUtilities.invokeAndWait {

@@ -31,6 +31,8 @@ private const val INDENT_PX = 12
 private const val MIN_BAR_WIDTH = 2
 private const val TICK_INTERVALS = 5 // produces TICK_INTERVALS+1 tick marks (0..TICK_INTERVALS)
 private const val MIN_BAR_AREA_WIDTH = 300
+private const val DURATION_LABEL_GAP = 4
+private const val DURATION_LABEL_MARGIN = 8
 private const val ZOOM_STEP = 1.1
 private const val MIN_ZOOM = 1.0
 private const val MAX_ZOOM = 20.0
@@ -58,11 +60,13 @@ class WaterfallPanel(
             override fun getPreferredSize(): Dimension {
                 val fm = getFontMetrics(font)
                 val labelWidth = labelWidth(fm)
+                val durationWidth = durationLabelWidth(fm)
                 val viewportWidth = parent?.width ?: DEFAULT_VIEWPORT_WIDTH
-                val baseBarAreaWidth = max(MIN_BAR_AREA_WIDTH, viewportWidth - labelWidth)
+                val baseBarAreaWidth =
+                    max(MIN_BAR_AREA_WIDTH, viewportWidth - labelWidth - durationWidth)
                 val barAreaWidth = (baseBarAreaWidth * zoomFactor).toInt()
                 return Dimension(
-                    labelWidth + barAreaWidth,
+                    labelWidth + barAreaWidth + durationWidth,
                     axisHeight(fm) + flatSpans.size * rowHeight(fm)
                 )
             }
@@ -161,14 +165,21 @@ class WaterfallPanel(
         return min(MAX_LABEL_WIDTH, longest + LABEL_PADDING * 2)
     }
 
+    private fun durationLabelWidth(fm: FontMetrics): Int {
+        if (flatSpans.isEmpty()) return 0
+        val longest = flatSpans.maxOf { fm.stringWidth("%.0fms".format(it.durationMs)) }
+        return DURATION_LABEL_GAP + longest + DURATION_LABEL_MARGIN
+    }
+
     private fun paintWaterfall(g: Graphics2D) {
         val fm = g.fontMetrics
         val rowHeight = rowHeight(fm)
         val axisHeight = axisHeight(fm)
         val labelWidth = labelWidth(fm)
+        val durationWidth = durationLabelWidth(fm)
 
         val w = inner.width
-        val barAreaWidth = w - labelWidth
+        val barAreaWidth = w - labelWidth - durationWidth
         if (barAreaWidth <= 0) return
 
         g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
@@ -230,7 +241,7 @@ class WaterfallPanel(
             g.color = JBColor.GRAY
             g.drawString(
                 "%.0fms".format(span.durationMs),
-                barX + barW + 4,
+                barX + barW + DURATION_LABEL_GAP,
                 y + rowHeight - ROW_PADDING / 2
             )
         }
