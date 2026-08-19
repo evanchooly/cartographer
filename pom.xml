@@ -10,12 +10,12 @@
     </parent>
 
     <artifactId>cartographer</artifactId>
-    <version>1.0.0-SNAPSHOT</version>
+    <version>1.0.0</version>
     <packaging>pom</packaging>
 
     <name>Cartographer</name>
     <description>A JVM agent and Maven plugin that instruments test runs with OpenTelemetry spans, producing a per-test call-graph trace for visualization in Jaeger or the bundled IntelliJ waterfall view.</description>
-    <url>https://github.com/evanchooly/cartographer</url>
+    <url>https://evanchooly.github.io/cartographer/</url>
 
     <scm>
         <connection>scm:git:git@github.com:evanchooly/cartographer.git</connection>

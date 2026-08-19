@@ -41,11 +41,15 @@ jobs:
 
       - name: Build IntelliJ Plugin
         working-directory: cartographer-intellij-plugin
+        run: ./gradlew buildPlugin --stacktrace
+
+      - name: Sign IntelliJ Plugin
+        working-directory: cartographer-intellij-plugin
         env:
           JETBRAINS_MARKETPLACE_CERTIFICATE_CHAIN: ${{ secrets.JETBRAINS_MARKETPLACE_CERTIFICATE_CHAIN }}
           JETBRAINS_MARKETPLACE_PRIVATE_KEY: ${{ secrets.JETBRAINS_MARKETPLACE_PRIVATE_KEY }}
           JETBRAINS_MARKETPLACE_PRIVATE_KEY_PASSWORD: ${{ secrets.JETBRAINS_MARKETPLACE_PRIVATE_KEY_PASSWORD }}
-        run: ./gradlew buildPlugin signPlugin --stacktrace
+        run: ./gradlew signPlugin --stacktrace
 
       - name: Upload IntelliJ Plugin
         uses: actions/upload-artifact@v7
