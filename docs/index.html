@@ -330,6 +330,27 @@ h2 {
 .terminal-body .comment { color: #6b8478; }
 .terminal-body .out { color: #49e0a0; display: block; margin-top: 4px; }
 
+/* comparison table */
+.compare-table { width: 100%; border-collapse: collapse; font-size: 14.5px; }
+.compare-table th, .compare-table td {
+  text-align: left;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+.compare-table th {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  font-weight: 600;
+}
+.compare-table th:first-child, .compare-table td:first-child { color: var(--text-dim); width: 26%; }
+.compare-table th.col-accent { color: var(--accent); }
+.compare-table tbody tr:last-child td { border-bottom: none; }
+.compare-table td:not(:first-child) { color: var(--text); }
+
 footer { padding: 40px 0 64px; }
 .legend {
   display: flex; flex-wrap: wrap; gap: 20px; align-items: center; justify-content: space-between;
@@ -345,6 +366,7 @@ footer { padding: 40px 0 64px; }
   .wrap { padding: 0 20px; }
   .hero { padding: 64px 0 44px; }
   section { padding: 48px 0; }
+  .compare-table { display: block; overflow-x: auto; }
 }
 </style>
 
@@ -504,6 +526,73 @@ footer { padding: 40px 0 64px; }
           </div>
         </div>
       </div>
+    </div>
+  </section>
+
+  <section id="comparison">
+    <div class="wrap">
+      <p class="section-tag">05 &middot; how it compares</p>
+      <h2>Cartographer vs. Java Flight Recorder</h2>
+      <p class="lede">JFR is a general-purpose, always-on JVM profiler built for production diagnostics. Cartographer is narrower on purpose &mdash; it exists to turn a single test run into a readable, per-test call trace.</p>
+      <div class="panel">
+        <table class="compare-table">
+          <thead>
+            <tr>
+              <th></th>
+              <th class="col-accent">Cartographer</th>
+              <th>Java Flight Recorder</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Primary use case</td>
+              <td>Understanding one test's behavior &mdash; call structure, duplicate work, timing</td>
+              <td>Low-overhead production profiling and incident diagnosis</td>
+            </tr>
+            <tr>
+              <td>Instrumentation scope</td>
+              <td>Every non-synthetic method in a configured package, via bytecode rewriting at load time</td>
+              <td>Sampling-based, plus opt-in JDK/JFR event types; not per-method call tracing</td>
+            </tr>
+            <tr>
+              <td>Granularity</td>
+              <td>Exact &mdash; every call is a span, nested by call depth</td>
+              <td>Statistical &mdash; stack samples at an interval, not exhaustive call capture</td>
+            </tr>
+            <tr>
+              <td>Output format</td>
+              <td>OpenTelemetry spans, written per test method under <code>target/cartographer/</code></td>
+              <td><code>.jfr</code> binary recordings, opened in JDK Mission Control</td>
+            </tr>
+            <tr>
+              <td>Viewing the result</td>
+              <td>In-IDE waterfall (IntelliJ plugin) or any OTLP/Jaeger-compatible backend</td>
+              <td>JDK Mission Control, or third-party JFR viewers</td>
+            </tr>
+            <tr>
+              <td>Scope of a "run"</td>
+              <td>One trace per test method, isolated from other tests where possible</td>
+              <td>One recording per JVM process, spanning everything that ran in it</td>
+            </tr>
+            <tr>
+              <td>Setup</td>
+              <td>Maven plugin adds <code>-javaagent</code> to the test JVM, mirroring JaCoCo</td>
+              <td>Built into the JDK (8u262+/11+); enabled with JVM flags, no agent needed</td>
+            </tr>
+            <tr>
+              <td>Overhead model</td>
+              <td>Higher per-method overhead by design &mdash; acceptable because it targets test runs, not production</td>
+              <td>Designed for &lt;1% overhead so it's safe to leave on in production</td>
+            </tr>
+            <tr>
+              <td>Intended environment</td>
+              <td>Local dev and CI test runs only</td>
+              <td>Development, CI, and production</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="panel-caption">They're complementary, not competing: reach for JFR when you need to know what a running JVM is doing; reach for Cartographer when you need to know exactly what one test did, and why it did it twice.</p>
     </div>
   </section>
 </main>
