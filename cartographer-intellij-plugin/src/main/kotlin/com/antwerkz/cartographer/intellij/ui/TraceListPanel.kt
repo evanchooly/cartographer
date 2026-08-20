@@ -1,16 +1,20 @@
 package com.antwerkz.cartographer.intellij.ui
 
-import com.antwerkz.cartographer.intellij.OtlpJsonParser
-import com.intellij.openapi.application.ApplicationManager
-import com.intellij.openapi.diagnostic.Logger
+import com.intellij.icons.AllIcons
+import com.intellij.ui.AnimatedIcon
 import com.intellij.ui.JBColor
+import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBScrollPane
 import com.intellij.ui.treeStructure.Tree
 import java.awt.BorderLayout
 import java.awt.Component
+import java.awt.FlowLayout
 import java.awt.Font
 import java.io.File
+import javax.swing.JButton
 import javax.swing.JPanel
+import javax.swing.event.TreeExpansionEvent
+import javax.swing.event.TreeWillExpandListener
 import javax.swing.tree.DefaultMutableTreeNode
 import javax.swing.tree.DefaultTreeCellRenderer
 import javax.swing.tree.DefaultTreeModel
@@ -18,14 +22,14 @@ import javax.swing.tree.DefaultTreeSelectionModel
 import javax.swing.tree.TreePath
 import javax.swing.tree.TreeSelectionModel
 
-class TraceListPanel(private val onSelect: (File) -> Unit) : JPanel(BorderLayout()) {
-    companion object {
-        private val log = Logger.getInstance(TraceListPanel::class.java)
-    }
+class TraceListPanel(private val onSelect: (File) -> Unit, private val onRescan: () -> Unit) :
+    JPanel(BorderLayout()) {
 
     private val root = DefaultMutableTreeNode("root")
     private val model = DefaultTreeModel(root)
     private val tree = Tree(model)
+    private val rescanButton = JButton("Rescan", AllIcons.Actions.Refresh)
+    private val scanIcon = JBLabel(AnimatedIcon.Default())
 
     init {
         tree.isRootVisible = false
@@ -53,37 +57,65 @@ class TraceListPanel(private val onSelect: (File) -> Unit) : JPanel(BorderLayout
             val leaf = node.userObject as? TraceLeaf ?: return@addTreeSelectionListener
             onSelect(leaf.file)
         }
+        tree.addTreeWillExpandListener(
+            object : TreeWillExpandListener {
+                override fun treeWillExpand(event: TreeExpansionEvent) {
+                    val node = event.path.lastPathComponent as? DefaultMutableTreeNode ?: return
+                    val header = node.userObject as? ClassHeader ?: return
+                    if (!isPlaceholderOnly(node)) return
+                    node.removeAllChildren()
+                    methodLeaves(header.files).forEach { leaf ->
+                        node.add(DefaultMutableTreeNode(leaf))
+                    }
+                    model.nodeStructureChanged(node)
+                }
+
+                override fun treeWillCollapse(event: TreeExpansionEvent) {
+                    val node = event.path.lastPathComponent as? DefaultMutableTreeNode ?: return
+                    node.userObject as? ClassHeader ?: return
+                    node.removeAllChildren()
+                    node.add(DefaultMutableTreeNode(LoadingPlaceholder))
+                    model.nodeStructureChanged(node)
+                }
+            }
+        )
+
+        rescanButton.addActionListener { onRescan() }
+        scanIcon.isVisible = false
+
+        val toolbar =
+            JPanel(FlowLayout(FlowLayout.LEFT)).apply {
+                add(rescanButton)
+                add(scanIcon)
+            }
+        add(toolbar, BorderLayout.NORTH)
         add(JBScrollPane(tree), BorderLayout.CENTER)
     }
 
-    fun refresh(modules: Map<String?, List<File>>) {
-        ApplicationManager.getApplication().executeOnPooledThread {
-            val durations: Map<File, Double?> =
-                modules.values.flatten().associateWith { f ->
-                    try {
-                        OtlpJsonParser.parse(f).firstOrNull()?.durationMs
-                    } catch (e: Exception) {
-                        log.warn("Failed to parse ${f.name}", e)
-                        null
-                    }
-                }
-            ApplicationManager.getApplication().invokeLater { buildTree(modules, durations) }
-        }
+    fun setScanning(active: Boolean) {
+        rescanButton.isEnabled = !active
+        scanIcon.isVisible = active
     }
 
-    private fun buildTree(modules: Map<String?, List<File>>, durations: Map<File, Double?>) {
+    private fun isPlaceholderOnly(node: DefaultMutableTreeNode): Boolean {
+        if (node.childCount != 1) return false
+        val onlyChild = node.getChildAt(0) as? DefaultMutableTreeNode ?: return false
+        return onlyChild.userObject === LoadingPlaceholder
+    }
+
+    fun refresh(modules: Map<String?, List<File>>) {
         root.removeAllChildren()
 
         val singleModule = modules.size == 1 && modules.containsKey(null)
 
         if (singleModule) {
-            populateClassNodes(root, modules[null] ?: emptyList(), durations)
+            populateClassNodes(root, modules[null] ?: emptyList())
         } else {
             modules.entries
                 .sortedBy { it.key ?: "" }
                 .forEach { (moduleName, files) ->
                     val moduleNode = DefaultMutableTreeNode(ModuleHeader(moduleName ?: ""))
-                    populateClassNodes(moduleNode, files, durations)
+                    populateClassNodes(moduleNode, files)
                     if (moduleNode.childCount > 0) root.add(moduleNode)
                 }
         }
@@ -93,41 +125,48 @@ class TraceListPanel(private val onSelect: (File) -> Unit) : JPanel(BorderLayout
         }
 
         model.reload()
-        for (i in 0 until tree.rowCount) tree.expandRow(i)
+
+        if (!singleModule) {
+            (0 until root.childCount)
+                .map { root.getChildAt(it) as DefaultMutableTreeNode }
+                .filter { it.userObject is ModuleHeader }
+                .forEach { tree.expandPath(TreePath(it.path)) }
+        }
     }
 
-    private fun populateClassNodes(
-        parent: DefaultMutableTreeNode,
-        files: List<File>,
-        durations: Map<File, Double?>
-    ) {
-        val byClass =
+    /**
+     * Groups files by fully-qualified class name only — no test method names are resolved (and no
+     * trace content is read) until a class node is expanded, keeping the initial view cheap for
+     * large trace directories.
+     */
+    private fun populateClassNodes(parent: DefaultMutableTreeNode, files: List<File>) {
+        val filesByClass =
             files
                 .filter { it.name != "cartographer-run.json" }
-                .mapNotNull { file ->
-                    val parseFileName = parseFileName(file)
-                    val (fqcn, method) = parseFileName ?: return@mapNotNull null
-                    Triple(file, fqcn, method)
-                }
-                .groupBy { (_, fqcn, _) -> fqcn }
+                .mapNotNull { file -> classFqcn(file)?.let { fqcn -> fqcn to file } }
+                .groupBy({ it.first }, { it.second })
                 .toSortedMap()
 
-        byClass.forEach { (fqcn, entries) ->
-            val simpleClass = fqcn.substringAfterLast('.')
-            val classNode = DefaultMutableTreeNode(simpleClass)
-            entries
-                .sortedBy { it.third }
-                .forEach { (file, _, method) ->
-                    classNode.add(DefaultMutableTreeNode(TraceLeaf(file, method, durations[file])))
-                }
+        filesByClass.forEach { (fqcn, classFiles) ->
+            val classNode = DefaultMutableTreeNode(ClassHeader(fqcn, classFiles))
+            classNode.add(DefaultMutableTreeNode(LoadingPlaceholder))
             parent.add(classNode)
         }
 
         val runFile = files.firstOrNull { it.name == "cartographer-run.json" }
         if (runFile != null) {
-            parent.add(DefaultMutableTreeNode(TraceLeaf(runFile, "cartographer-run", null)))
+            parent.add(DefaultMutableTreeNode(TraceLeaf(runFile, "cartographer-run")))
         }
     }
+
+    private fun methodLeaves(files: List<File>): List<TraceLeaf> =
+        files
+            .mapNotNull { file ->
+                parseFileName(file)?.let { (_, method) -> TraceLeaf(file, method) }
+            }
+            .sortedBy { it.label }
+
+    private fun classFqcn(file: File): String? = parseFileName(file)?.first
 
     private fun parseFileName(file: File): Pair<String, String>? {
         val base = file.nameWithoutExtension
@@ -138,7 +177,11 @@ class TraceListPanel(private val onSelect: (File) -> Unit) : JPanel(BorderLayout
 
     data class ModuleHeader(val name: String)
 
-    data class TraceLeaf(val file: File, val label: String, val durationMs: Double?)
+    data class ClassHeader(val fqcn: String, val files: List<File>)
+
+    data class TraceLeaf(val file: File, val label: String)
+
+    private object LoadingPlaceholder
 
     private class TraceTreeCellRenderer : DefaultTreeCellRenderer() {
         override fun getTreeCellRendererComponent(
@@ -159,9 +202,14 @@ class TraceListPanel(private val onSelect: (File) -> Unit) : JPanel(BorderLayout
                     font = font.deriveFont(Font.BOLD)
                     if (!selected) foreground = JBColor.foreground()
                 }
+                is ClassHeader -> {
+                    text = uo.fqcn.substringAfterLast('.')
+                    icon = null
+                    if (!selected) foreground = JBColor.GRAY
+                    font = font.deriveFont(Font.ITALIC)
+                }
                 is TraceLeaf -> {
-                    val dur = uo.durationMs?.let { "  %.0fms".format(it) } ?: ""
-                    text = uo.label + dur
+                    text = uo.label
                     if (uo.file.name == "cartographer-run.json") {
                         if (!selected) foreground = JBColor.GRAY
                         font = font.deriveFont(Font.ITALIC)

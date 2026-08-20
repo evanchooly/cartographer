@@ -31,6 +31,14 @@ class TraceFileWatcher(
         pollTask = null
     }
 
+    /** Runs a scan immediately, outside the regular polling cadence, and reports completion. */
+    fun rescanNow(onFinished: () -> Unit) {
+        scheduler.submit {
+            poll()
+            ApplicationManager.getApplication().invokeLater { onFinished() }
+        }
+    }
+
     private fun poll() {
         val modules = PomConfigReader.readModules(projectRoot)
         val snapshot =

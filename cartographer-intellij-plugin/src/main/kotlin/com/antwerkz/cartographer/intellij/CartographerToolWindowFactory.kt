@@ -26,17 +26,29 @@ class CartographerToolWindowFactory : ToolWindowFactory {
                 onSpanActivated = { span -> SourceNavigator.navigate(project, span.name) }
             )
 
-        val listPanel = TraceListPanel { file ->
-            detailPanel.clear()
-            ApplicationManager.getApplication().executeOnPooledThread {
-                val roots = OtlpJsonParser.parse(file)
-                ApplicationManager.getApplication().invokeLater { waterfallPanel.load(roots) }
-            }
-        }
+        lateinit var watcher: TraceFileWatcher
+        lateinit var listPanel: TraceListPanel
+
+        listPanel =
+            TraceListPanel(
+                onSelect = { file ->
+                    detailPanel.clear()
+                    ApplicationManager.getApplication().executeOnPooledThread {
+                        val roots = OtlpJsonParser.parse(file)
+                        ApplicationManager.getApplication().invokeLater {
+                            waterfallPanel.load(roots)
+                        }
+                    }
+                },
+                onRescan = {
+                    listPanel.setScanning(true)
+                    watcher.rescanNow { listPanel.setScanning(false) }
+                }
+            )
 
         val projectRoot = project.basePath?.let { File(it) } ?: File(".")
 
-        val watcher =
+        watcher =
             TraceFileWatcher(project, projectRoot) { moduleFiles -> listPanel.refresh(moduleFiles) }
 
         val rightPanel =
