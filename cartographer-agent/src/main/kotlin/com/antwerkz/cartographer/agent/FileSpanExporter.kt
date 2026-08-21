@@ -23,14 +23,13 @@ class FileSpanExporter(
 
     companion object {
         // Caps how large a trace's buffer can grow while it's still unadopted (no test name
-        // registered for it) before being cut loose and written out under the trace-ID fallback
-        // name. This is the actual backstop against unbounded growth — checked against the real
-        // accumulated buffer, not a proxy counter — because a never-adopted lineage (e.g. a
-        // shared cache warmed up once from a JUnit extension, on a thread that never itself runs
-        // a @Test method) can otherwise recurse into hundreds of thousands of spans with no
-        // other trigger to stop it. Traces that do get adopted are never touched by this:
-        // registerTestRoot() runs before the test body executes, so a legitimately huge single
-        // test's spans are never split.
+        // registered for it) before it's dropped outright. This is the backstop against
+        // unbounded growth — checked against the real accumulated buffer, not a proxy counter —
+        // because a never-adopted lineage (e.g. a shared cache warmed up once from a JUnit
+        // extension, on a thread that never itself runs a @Test method) can otherwise recurse
+        // into hundreds of thousands of spans with no other trigger to stop it. Traces that do
+        // get adopted are never touched by this: registerTestRoot() runs before the test body
+        // executes, so a legitimately huge single test's spans are never dropped.
         private const val MAX_UNADOPTED_TRACE_SPANS = 5_000
     }
 
@@ -39,9 +38,10 @@ class FileSpanExporter(
     // individual span's parent here. Pre-test-root spans (e.g. constructors run during a test
     // class's own field initialization) are parented to a per-thread pending trace
     // (CartographerContext.resolveParent) that TestRootAdvice later adopts as the real test
-    // trace, so they end up flushed under the real test name once it's known.
+    // trace, so they end up flushed under the real test name once it's known. A trace that never
+    // gets adopted isn't attributable to any single test, so it's simply dropped rather than
+    // written out under a meaningless trace-ID filename.
     override fun export(spans: Collection<SpanData>): CompletableResultCode {
-        val overflowed = mutableSetOf<String>()
         lock.withLock {
             spans.forEach { span ->
                 val bucket = pendingByTrace.getOrPut(span.traceId) { mutableListOf() }
@@ -49,11 +49,10 @@ class FileSpanExporter(
                 if (bucket.size >= MAX_UNADOPTED_TRACE_SPANS &&
                     CartographerContext.testNameForTrace(span.traceId) == null
                 ) {
-                    overflowed += span.traceId
+                    pendingByTrace.remove(span.traceId)
                 }
             }
         }
-        overflowed.forEach { flushTrace(it) }
         return CompletableResultCode.ofSuccess()
     }
 
@@ -64,11 +63,11 @@ class FileSpanExporter(
     }
 
     private fun flushTrace(traceId: String): CompletableResultCode {
+        val testName = CartographerContext.testNameForTrace(traceId)
         val toWrite = lock.withLock { pendingByTrace.remove(traceId) }
-        if (toWrite.isNullOrEmpty()) return CompletableResultCode.ofSuccess()
+        if (toWrite.isNullOrEmpty() || testName == null) return CompletableResultCode.ofSuccess()
 
         outputDir.mkdirs()
-        val testName = CartographerContext.testNameForTrace(traceId) ?: "cartographer-run-$traceId"
         val safeName = testName.replace(Regex("[^a-zA-Z0-9._-]"), "_")
         val outFile = File(outputDir, "$safeName.json")
 

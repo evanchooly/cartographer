@@ -94,19 +94,27 @@ unaffected and continue to be instrumented normally.
 Test-to-trace naming is tracked explicitly rather than via a `ThreadLocal`:
 `TestRootAdvice` registers the root span's OTel trace ID against the test's signature in
 `CartographerContext` when the span is created, and clears it once flushed. `FileExporter`
-buckets incoming spans by trace ID (not into one shared buffer) and, when a trace's root
-span completes, looks up its registered name to pick the output filename before writing
-and clearing that trace's spans. This keeps concurrently executing tests (e.g. JUnit 5
-parallel class execution) from having their spans interleaved into the same file. Any
-span that ends up with no valid parent and no trace registered — e.g. from a background
-thread the OTel `Context` was never propagated to — still gets its own isolated output
-file, named `cartographer-run-<traceId>`, rather than being merged into a single shared
-fallback file.
+buckets incoming spans by trace ID (not into one shared buffer) and, when a trace is
+flushed, looks up its registered name to pick the output filename before writing and
+clearing that trace's spans. This keeps concurrently executing tests (e.g. JUnit 5
+parallel class execution) from having their spans interleaved into the same file.
 
-After each root test span ends, the agent calls `SdkTracerProvider.forceFlush()` before
-the next test begins, ensuring that trace's spans are written before the next test's
-spans start arriving. One output file is written per test method (or per orphaned trace,
-in the fallback case above).
+A span created with no currently active span to parent to — e.g. a production
+constructor called from a test class's field initializer, or a JUnit extension's
+one-time setup, running before any `@Test` method's root span exists — is parented to a
+per-thread pending trace (`CartographerContext.resolveParent`) instead of minting its own
+disposable trace. If a `@Test` method later starts on that same thread, `TestRootAdvice`
+adopts the pending trace as the test's own trace ID, so the earlier spans end up in that
+test's output file under its real name. A pending trace that's never adopted — e.g. truly
+background work with no correlated test, or work that outlives 5,000 spans without ever
+being adopted — isn't attributable to any single test and is dropped rather than written
+under a meaningless trace-ID filename.
+
+After each root test span ends, the agent flushes `FileSpanExporter` directly before the
+next test begins (`SdkTracerProvider.forceFlush()` does not reach it: `SimpleSpanProcessor`
+only waits on already in-flight async exports, a no-op for a synchronous exporter), so
+that trace's spans are written before the next test's spans start arriving. One output
+file is written per test method; nothing is written for a trace that never gets adopted.
 
 ### Argument capture
 

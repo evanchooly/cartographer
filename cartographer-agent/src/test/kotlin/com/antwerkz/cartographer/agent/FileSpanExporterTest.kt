@@ -100,17 +100,15 @@ class FileSpanExporterTest {
     }
 
     @Test
-    fun `unregistered trace falls back to a name scoped to its own trace id`() {
+    fun `an unregistered trace is dropped rather than written under a fallback name`() {
         val exporter = FileSpanExporter(tempDir)
         exporter.export(rootSpan("root"))
         exporter.flush()
-        val files = tempDir.listFiles()!!
-        assertEquals(1, files.size)
-        assertTrue(files[0].name.startsWith("cartographer-run-"))
+        assertEquals(0, tempDir.listFiles()?.size ?: 0)
     }
 
     @Test
-    fun `an unadopted trace that grows past the size cap is flushed automatically`() {
+    fun `an unadopted trace that grows past the size cap is dropped without waiting for flush`() {
         val mem = InMemorySpanExporter.create()
         val provider = SdkTracerProvider.builder()
             .addSpanProcessor(SimpleSpanProcessor.create(mem))
@@ -127,14 +125,16 @@ class FileSpanExporterTest {
 
         val exporter = FileSpanExporter(tempDir)
         exporter.export(mem.finishedSpanItems)
-        // No explicit flush() call: the cap must trigger the write on its own.
-        val files = tempDir.listFiles()!!
-        assertEquals(1, files.size)
-        assertTrue(files[0].name.startsWith("cartographer-run-"))
+        exporter.flush()
+        assertEquals(
+            0,
+            tempDir.listFiles()?.size ?: 0,
+            "An unadopted trace isn't attributable to any test, so it should be dropped, not written"
+        )
     }
 
     @Test
-    fun `an adopted trace is never auto-split even past the unadopted-trace size cap`() {
+    fun `an adopted trace is never dropped even past the unadopted-trace size cap`() {
         val mem = InMemorySpanExporter.create()
         val provider = SdkTracerProvider.builder()
             .addSpanProcessor(SimpleSpanProcessor.create(mem))
