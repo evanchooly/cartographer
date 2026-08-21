@@ -59,6 +59,30 @@ class CartographerTransformerTest {
     }
 
     @Test
+    fun `constructor of a class declaring a Test method is not instrumented`() {
+        com.antwerkz.cartographer.agent.fixture.TestClassFixture()
+        val spans = spanExporter.finishedSpanItems
+        assertTrue(
+            spans.none { it.name.contains("TestClassFixture") },
+            "Expected no span for TestClassFixture construction, got: ${spans.map { it.name }}"
+        )
+    }
+
+    @Test
+    fun `pre-test-root spans are backfilled into the test's trace once it starts`() {
+        val fixture = com.antwerkz.cartographer.agent.fixture.DeferredNamingFixture()
+        fixture.exampleTest()
+        val spans = spanExporter.finishedSpanItems
+        val helperSpan = spans.first { it.name.contains("HelperFixture") }
+        val testSpan = spans.first { it.name.contains("exampleTest") }
+        assertTrue(
+            helperSpan.traceId == testSpan.traceId,
+            "Expected constructor span from before the test method started to share the test's " +
+                "trace ID, got helper=${helperSpan.traceId} test=${testSpan.traceId}"
+        )
+    }
+
+    @Test
     fun `exception in instrumented method is recorded on span`() {
         assertThrows(ArithmeticException::class.java) {
             com.antwerkz.cartographer.agent.fixture.SimpleFixture().divide(1, 0)

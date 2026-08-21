@@ -7,9 +7,10 @@ import io.opentelemetry.sdk.trace.export.SimpleSpanProcessor
 
 object OtelSetup {
     fun initialize(config: AgentConfig, fileExporter: FileSpanExporter): SdkTracerProvider {
-        // FileSpanExporter must use SimpleSpanProcessor: it relies on a ThreadLocal for the
-        // current test name, which is only accessible on the test thread. BatchSpanProcessor
-        // exports on a background thread where the ThreadLocal would be null.
+        // FileSpanExporter must use SimpleSpanProcessor: TestRootAdvice clears the trace's
+        // registered test name right after forceFlush() returns, so the export of a trace's
+        // spans must happen synchronously with span completion. BatchSpanProcessor would export
+        // on a delayed background thread, racing that cleanup.
         val builder = SdkTracerProvider.builder()
             .addSpanProcessor(SimpleSpanProcessor.create(fileExporter))
 

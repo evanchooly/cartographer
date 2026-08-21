@@ -12,7 +12,7 @@ object CtorAdvice {
         @Advice.Origin("#t.#m") signature: String
     ): Scope? {
         val tracer = CartographerContext.tracer ?: return null
-        return tracer.spanBuilder(signature).startSpan().makeCurrent()
+        return tracer.spanBuilder(signature).setParent(CartographerContext.resolveParent()).startSpan().makeCurrent()
     }
 
     @JvmStatic

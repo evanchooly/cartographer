@@ -32,23 +32,31 @@ ByteBuddy version, and Maven Central release config (GPG signing, nexus-staging-
 
 ### Entry point
 
-`com.antwerkz.cartographer.CartographerAgent` is declared as `Premain-Class` in the JAR manifest.
+`com.antwerkz.cartographer.agent.CartographerAgent` is declared as `Premain-Class` in the
+JAR manifest.
 
 ### Startup sequence (`premain`)
 
-1. Parse agent arguments passed as a query-string from the Maven plugin:
+1. Parse agent arguments passed from the Maven plugin as `|`-delimited `key=value` pairs
+   (e.g. `packages=com.example|outputDir=target/cartographer|captureArgs=true`):
    `packages`, `outputDir`, `endpoint`, `captureArgs`, `maxArgLength`
-2. Initialize the OTel SDK with a `BatchSpanProcessor` wired to two exporters in parallel:
-   - **FileExporter** — writes OTLP JSON to `<outputDir>/<test-name>.json`
-   - **OtlpHttpExporter** — exports to the configured endpoint (omitted if not set)
+2. Initialize the OTel SDK with two independent span processors:
+   - **FileSpanExporter**, wrapped in a `SimpleSpanProcessor` — writes OTLP JSON to
+     `<outputDir>/<test-name>.json` synchronously as spans complete (see "Per-test trace
+     isolation" below for why this must not be batched/async)
+   - **OtlpHttpExporter**, wrapped in a `BatchSpanProcessor` — exports to the configured
+     endpoint (omitted if not set)
 3. Install a ByteBuddy `AgentBuilder` that matches all classes under the configured
    package(s) and applies method instrumentation advice.
 
 ### Bytecode instrumentation
 
 - **Library:** ByteBuddy with `AgentBuilder` (class-load-time transformation)
-- **Scope:** All non-synthetic methods and constructors in classes whose package starts
-  with any configured root package
+- **Scope:** All non-synthetic, non-abstract methods and non-synthetic constructors in
+  classes whose package starts with any configured root package, **except** constructors
+  of classes that themselves declare a `@Test`-style method (see "Per-test trace
+  isolation" below) — those constructors run before the test's root span exists and would
+  otherwise generate their own orphaned trace per test invocation
 - **Mechanism:** `@Advice.OnMethodEnter` / `@Advice.OnMethodExit` pair
   - Enter: start a child span named `ClassName#methodName`
   - Exit: end the span; if an exception is being thrown, call `span.recordException(e)`
@@ -56,16 +64,49 @@ ByteBuddy version, and Maven Central release config (GPG signing, nexus-staging-
 
 ### Per-test trace isolation
 
-ByteBuddy also intercepts JUnit 5's internal test method invocation entry point and
-TestNG's `IInvokedMethodListener`. Each test method receives a fresh root span (new
-trace ID) named `TestClass#testMethod`. All instrumented calls during that test become
-child spans of that root. This requires no changes to user test code.
+Rather than hooking a test framework's internal dispatch machinery, ByteBuddy matches
+methods directly annotated with `org.junit.jupiter.api.Test`,
+`org.junit.jupiter.params.ParameterizedTest`, or `org.testng.annotations.Test` within the
+configured package(s), and applies `TestRootAdvice` to them (in place of the general
+method advice used for everything else). Each matched test method receives a fresh root
+span (new trace ID, `setNoParent()`) named `TestClass#testMethod`. All instrumented calls
+made during that test — on the same thread, or on any thread the OTel `Context` is
+explicitly propagated to — become child spans of that root. This requires no changes to
+user test code.
 
-After each test method ends, the agent calls `SdkTracerProvider.forceFlush()` to drain
-the `BatchSpanProcessor` before the next test begins — this ensures all spans for a test
-are flushed to its output file before the next test's spans start arriving. One output
-file is written per test method. If per-framework isolation is not available (unexpected
-runner), all spans fall under a single `cartographer-run` root span.
+Because the annotation matcher only sees `@Test`-style methods, framework lifecycle
+callbacks (`@BeforeEach`/`@AfterEach`, extensions) and `@RepeatedTest`/`@TestFactory`/
+custom composed annotations are not wrapped with a root span. This is a deliberate
+trade-off: JUnit's public annotation API is stable across versions, whereas its internal
+engine execution/invocation classes are not.
+
+Test classes' own constructors are excluded from instrumentation entirely (see
+"Bytecode instrumentation" above). Test runners instantiate a fresh test instance before
+invoking the `@Test` method, i.e. before any root span exists, so an instrumented
+constructor would start its own parentless trace on every single test invocation. Since
+nothing is known about the upcoming test at construction time, this was observed to
+produce one orphaned, unnamed output file per test (see below) — multiplied by every
+constructor call reachable during test-instance construction (field initializers, DI
+setup, etc.) — rather than useful data. Constructors of non-test classes reachable
+*during* an active test (i.e. after the `@Test` method's root span has started) are
+unaffected and continue to be instrumented normally.
+
+Test-to-trace naming is tracked explicitly rather than via a `ThreadLocal`:
+`TestRootAdvice` registers the root span's OTel trace ID against the test's signature in
+`CartographerContext` when the span is created, and clears it once flushed. `FileExporter`
+buckets incoming spans by trace ID (not into one shared buffer) and, when a trace's root
+span completes, looks up its registered name to pick the output filename before writing
+and clearing that trace's spans. This keeps concurrently executing tests (e.g. JUnit 5
+parallel class execution) from having their spans interleaved into the same file. Any
+span that ends up with no valid parent and no trace registered — e.g. from a background
+thread the OTel `Context` was never propagated to — still gets its own isolated output
+file, named `cartographer-run-<traceId>`, rather than being merged into a single shared
+fallback file.
+
+After each root test span ends, the agent calls `SdkTracerProvider.forceFlush()` before
+the next test begins, ensuring that trace's spans are written before the next test's
+spans start arriving. One output file is written per test method (or per orphaned trace,
+in the fallback case above).
 
 ### Argument capture
 
@@ -125,7 +166,7 @@ Cartographer does not ship a fixed profile name.
 Test JVM startup
   └── premain() fires
         ├── Parse agent args
-        ├── Init OTel SDK (BatchSpanProcessor → [FileExporter, OtlpHttpExporter?])
+        ├── Init OTel SDK (SimpleSpanProcessor → FileExporter, BatchSpanProcessor → OtlpHttpExporter?)
         └── Install ByteBuddy AgentBuilder
 
 Test execution

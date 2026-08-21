@@ -14,7 +14,7 @@ object MethodAdvice {
         @Advice.AllArguments args: Array<Any?>
     ): Scope? {
         val tracer = CartographerContext.tracer ?: return null
-        val span = tracer.spanBuilder(signature).startSpan()
+        val span = tracer.spanBuilder(signature).setParent(CartographerContext.resolveParent()).startSpan()
 
         if (CartographerContext.captureArgs && args.isNotEmpty()) {
             val maxLen = CartographerContext.maxArgLength

@@ -32,9 +32,13 @@ public class CartographerTransformer {
                 .and(ElementMatchers.not(ElementMatchers.isAbstract()))
                 .and(ElementMatchers.not(testAnnotations));
 
+        final ElementMatcher.Junction<TypeDescription> isTestClass =
+            ElementMatchers.declaresMethod(testAnnotations);
+
         final ElementMatcher.Junction<MethodDescription> ctors =
             ElementMatchers.<MethodDescription>isConstructor()
-                .and(ElementMatchers.not(ElementMatchers.isSynthetic()));
+                .and(ElementMatchers.not(ElementMatchers.isSynthetic()))
+                .and(ElementMatchers.not(ElementMatchers.isDeclaredBy(isTestClass)));
 
         new AgentBuilder.Default()
             .with(AgentBuilder.RedefinitionStrategy.RETRANSFORMATION)

@@ -12,13 +12,12 @@ object CartographerAgent {
             appendAgentToSystemClasspath(instrumentation)
 
             val config = AgentConfig.parse(agentArgs)
-            val fileExporter = FileSpanExporter(config.outputDir) {
-                CartographerContext.currentTestName ?: "cartographer-run"
-            }
+            val fileExporter = FileSpanExporter(config.outputDir)
             val tracerProvider = OtelSetup.initialize(config, fileExporter)
 
             CartographerContext.tracer = tracerProvider.get("com.antwerkz.cartographer")
             CartographerContext.tracerProvider = tracerProvider
+            CartographerContext.fileExporter = fileExporter
             CartographerContext.captureArgs = config.captureArgs
             CartographerContext.maxArgLength = config.maxArgLength
 
