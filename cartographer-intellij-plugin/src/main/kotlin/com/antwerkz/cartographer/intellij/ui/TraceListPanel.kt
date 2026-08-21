@@ -5,6 +5,7 @@ import com.intellij.ui.AnimatedIcon
 import com.intellij.ui.JBColor
 import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBScrollPane
+import com.intellij.ui.components.JBTextField
 import com.intellij.ui.treeStructure.Tree
 import java.awt.BorderLayout
 import java.awt.Component
@@ -13,6 +14,8 @@ import java.awt.Font
 import java.io.File
 import javax.swing.JButton
 import javax.swing.JPanel
+import javax.swing.event.DocumentEvent
+import javax.swing.event.DocumentListener
 import javax.swing.event.TreeExpansionEvent
 import javax.swing.event.TreeWillExpandListener
 import javax.swing.tree.DefaultMutableTreeNode
@@ -28,8 +31,10 @@ class TraceListPanel(private val onSelect: (File) -> Unit, private val onRescan:
     private val root = DefaultMutableTreeNode("root")
     private val model = DefaultTreeModel(root)
     private val tree = Tree(model)
-    private val rescanButton = JButton("Rescan", AllIcons.Actions.Refresh)
+    private val rescanButton = JButton(AllIcons.Actions.Refresh)
     private val scanIcon = JBLabel(AnimatedIcon.Default())
+    private val filterField = JBTextField(20).apply { emptyText.text = "Filter tests" }
+    private var allModules: Map<String?, List<File>> = emptyMap()
 
     init {
         tree.isRootVisible = false
@@ -82,11 +87,21 @@ class TraceListPanel(private val onSelect: (File) -> Unit, private val onRescan:
 
         rescanButton.addActionListener { onRescan() }
         scanIcon.isVisible = false
+        filterField.document.addDocumentListener(
+            object : DocumentListener {
+                override fun insertUpdate(e: DocumentEvent) = applyFilter()
+
+                override fun removeUpdate(e: DocumentEvent) = applyFilter()
+
+                override fun changedUpdate(e: DocumentEvent) = applyFilter()
+            }
+        )
 
         val toolbar =
             JPanel(FlowLayout(FlowLayout.LEFT)).apply {
                 add(rescanButton)
                 add(scanIcon)
+                add(filterField)
             }
         add(toolbar, BorderLayout.NORTH)
         add(JBScrollPane(tree), BorderLayout.CENTER)
@@ -104,6 +119,14 @@ class TraceListPanel(private val onSelect: (File) -> Unit, private val onRescan:
     }
 
     fun refresh(modules: Map<String?, List<File>>) {
+        allModules = modules
+        applyFilter()
+    }
+
+    private fun applyFilter() {
+        val query = filterField.text.trim()
+        val modules = if (query.isBlank()) allModules else filterModules(allModules, query)
+
         root.removeAllChildren()
 
         val singleModule = modules.size == 1 && modules.containsKey(null)
@@ -121,17 +144,34 @@ class TraceListPanel(private val onSelect: (File) -> Unit, private val onRescan:
         }
 
         if (root.childCount == 0) {
-            root.add(DefaultMutableTreeNode("No traces yet — run your tests"))
+            val message = if (query.isBlank()) "No traces yet — run your tests" else "No matches"
+            root.add(DefaultMutableTreeNode(message))
         }
 
         model.reload()
 
-        if (!singleModule) {
+        if (!singleModule || query.isNotBlank()) {
             (0 until root.childCount)
                 .map { root.getChildAt(it) as DefaultMutableTreeNode }
-                .filter { it.userObject is ModuleHeader }
                 .forEach { tree.expandPath(TreePath(it.path)) }
         }
+    }
+
+    private fun filterModules(
+        modules: Map<String?, List<File>>,
+        query: String
+    ): Map<String?, List<File>> {
+        val needle = query.lowercase()
+        return modules
+            .mapValues { (_, files) ->
+                files.filter { file ->
+                    if (file.name == "cartographer-run.json") return@filter true
+                    val parsed = parseFileName(file) ?: return@filter false
+                    val (fqcn, method) = parsed
+                    fqcn.lowercase().contains(needle) || method.lowercase().contains(needle)
+                }
+            }
+            .filterValues { it.isNotEmpty() }
     }
 
     /**

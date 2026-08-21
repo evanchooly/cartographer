@@ -70,6 +70,18 @@ class WaterfallPanel(
                     axisHeight(fm) + flatSpans.size * rowHeight(fm)
                 )
             }
+
+            override fun getToolTipText(event: MouseEvent): String? {
+                val fm = getFontMetrics(font)
+                val axisHeight = axisHeight(fm)
+                if (event.y < axisHeight) return null
+                val row = (event.y - axisHeight) / rowHeight(fm)
+                if (row !in flatSpans.indices) return null
+                val span = flatSpans[row]
+                val label = span.simpleName
+                return if (fm.stringWidth(label) > labelWidth(fm) - LABEL_PADDING * 2) label
+                else null
+            }
         }
 
     private val scroll = JBScrollPane(inner)
@@ -78,6 +90,7 @@ class WaterfallPanel(
         layout = BorderLayout()
         add(scroll, BorderLayout.CENTER)
         inner.background = JBColor.background()
+        inner.toolTipText = ""
         inner.addMouseListener(
             object : MouseAdapter() {
                 override fun mouseClicked(e: MouseEvent) {
