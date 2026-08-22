@@ -77,6 +77,35 @@ jobs:
     outputs:
       releasable: ${{ steps.releasable.outputs.releasable }}
 
+  PublishIntelliJPlugin:
+    needs:
+      - Matrix
+      - Build
+    if: needs.Matrix.outputs.releasable == 'true' && startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Java
+        uses: actions/setup-java@v5
+        with:
+          java-version: 17
+          distribution: temurin
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v6
+
+      - name: Publish IntelliJ Plugin
+        working-directory: cartographer-intellij-plugin
+        env:
+          JETBRAINS_MARKETPLACE_CERTIFICATE_CHAIN: ${{ secrets.JETBRAINS_MARKETPLACE_CERTIFICATE_CHAIN }}
+          JETBRAINS_MARKETPLACE_PRIVATE_KEY: ${{ secrets.JETBRAINS_MARKETPLACE_PRIVATE_KEY }}
+          JETBRAINS_MARKETPLACE_PRIVATE_KEY_PASSWORD: ${{ secrets.JETBRAINS_MARKETPLACE_PRIVATE_KEY_PASSWORD }}
+          JETBRAINS_MARKETPLACE_TOKEN: ${{ secrets.JETBRAINS_MARKETPLACE_TOKEN }}
+        run: ./gradlew publishPlugin --stacktrace
+
   Release:
     needs:
       - Matrix
