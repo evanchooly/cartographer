@@ -1,7 +1,7 @@
 <idea-plugin>
     <id>com.antwerkz.cartographer</id>
     <name>Cartographer</name>
-    <vendor email="jlee@antwerkz.com" url="https://github.com/evanchooly/cartographer">antwerkz</vendor>
+    <vendor email="jlee@antwerkz.com" url="https://evanchooly.github.io/cartographer/">evanchooly</vendor>
     <description><![CDATA[
         Cartographer visualizes OpenTelemetry trace output captured by the Cartographer Maven plugin
         during test runs, rendering it as a waterfall directly inside the IDE. It also
@@ -19,6 +19,7 @@
         <toolWindow
             id="Cartographer"
             anchor="bottom"
+            icon="icons/cartographerToolWindow.svg"
             factoryClass="com.antwerkz.cartographer.intellij.CartographerToolWindowFactory"
         />
         <notificationGroup id="Cartographer" displayType="BALLOON" isLogByDefault="true"/>
