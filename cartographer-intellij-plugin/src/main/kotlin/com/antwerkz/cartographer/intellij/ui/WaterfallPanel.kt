@@ -23,6 +23,7 @@ import kotlin.math.min
 private val COLOR_ROOT = Color(0x3d, 0x6b, 0x8e)
 private val COLOR_CHILD = Color(0x5e, 0x8e, 0x4d)
 private val COLOR_SELECTED = Color(0xe8, 0xa8, 0x38)
+private val COLOR_HOVER = JBColor(Color(0, 0, 0, 20), Color(255, 255, 255, 20))
 private const val ROW_PADDING = 8
 private const val AXIS_PADDING = 10
 private const val LABEL_PADDING = 6
@@ -50,6 +51,8 @@ class WaterfallPanel(
     private var flatSpans: List<SpanNode> = emptyList()
     var selectedSpan: SpanNode? = null
         private set
+
+    private var hoveredSpan: SpanNode? = null
 
     private var rootStartNano: Long = 0
     private var totalNano: Long = 1
@@ -108,16 +111,19 @@ class WaterfallPanel(
             object : MouseAdapter() {
                 override fun mouseClicked(e: MouseEvent) {
                     val fm = inner.getFontMetrics(inner.font)
-                    if (e.y < axisHeight(fm)) return
-                    val row = (e.y - axisHeight(fm)) / rowHeight(fm)
-                    if (row in flatSpans.indices) {
-                        val span = flatSpans[row]
-                        selectedSpan = span
+                    val span = spanAtY(e.y, fm) ?: return
+                    selectedSpan = span
+                    inner.repaint()
+                    onSpanSelected(span)
+                    if (e.clickCount == 2 && SwingUtilities.isLeftMouseButton(e)) {
+                        onSpanActivated(span)
+                    }
+                }
+
+                override fun mouseExited(e: MouseEvent) {
+                    if (hoveredSpan != null) {
+                        hoveredSpan = null
                         inner.repaint()
-                        onSpanSelected(span)
-                        if (e.clickCount == 2 && SwingUtilities.isLeftMouseButton(e)) {
-                            onSpanActivated(span)
-                        }
                     }
                 }
 
@@ -153,6 +159,12 @@ class WaterfallPanel(
                         } else {
                             Cursor.getDefaultCursor()
                         }
+
+                    val span = spanAtY(e.y, fm)
+                    if (span != hoveredSpan) {
+                        hoveredSpan = span
+                        inner.repaint()
+                    }
                 }
             }
         inner.addMouseListener(mouseHandler)
@@ -202,6 +214,7 @@ class WaterfallPanel(
         assert(SwingUtilities.isEventDispatchThread()) { "load() must be called on EDT" }
         flatSpans = flatten(roots)
         selectedSpan = null
+        hoveredSpan = null
         zoomFactor = MIN_ZOOM
         labelScrollOffset = 0
         if (flatSpans.isNotEmpty()) {
@@ -245,6 +258,12 @@ class WaterfallPanel(
     private fun isOnLabelDivider(x: Int, fm: FontMetrics) =
         abs(x - labelWidth(fm)) <= LABEL_RESIZE_HANDLE_PX
 
+    private fun spanAtY(y: Int, fm: FontMetrics): SpanNode? {
+        if (y < axisHeight(fm)) return null
+        val row = (y - axisHeight(fm)) / rowHeight(fm)
+        return flatSpans.getOrNull(row)
+    }
+
     private fun durationLabelWidth(fm: FontMetrics): Int {
         if (flatSpans.isEmpty()) return 0
         val longest = flatSpans.maxOf { fm.stringWidth("%.0fms".format(it.durationMs)) }
@@ -282,6 +301,11 @@ class WaterfallPanel(
         flatSpans.forEachIndexed { i, span ->
             val y = axisHeight + i * rowHeight
             val indent = span.depth * INDENT_PX
+
+            if (span == hoveredSpan) {
+                g.color = COLOR_HOVER
+                g.fillRect(0, y, w, rowHeight)
+            }
 
             // Label (clipped to the label column so long names truncate instead of
             // bleeding into the bar area)
