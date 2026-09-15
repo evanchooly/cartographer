@@ -29,14 +29,22 @@ class CartographerToolWindowFactory : ToolWindowFactory {
         lateinit var watcher: TraceFileWatcher
         lateinit var listPanel: TraceListPanel
 
+        // Selections can arrive faster than background parses complete; this token lets a
+        // stale parse's invokeLater recognize it's been superseded and skip applying its
+        // (out-of-date) result instead of overwriting a newer selection.
+        var loadToken = 0
+
         listPanel =
             TraceListPanel(
                 onSelect = { file ->
                     detailPanel.clear()
+                    val token = ++loadToken
                     ApplicationManager.getApplication().executeOnPooledThread {
                         val roots = OtlpJsonParser.parse(file)
                         ApplicationManager.getApplication().invokeLater {
-                            waterfallPanel.load(roots)
+                            if (token == loadToken) {
+                                waterfallPanel.load(roots)
+                            }
                         }
                     }
                 },
