@@ -58,7 +58,10 @@ JAR manifest.
   isolation" below) — those constructors run before the test's root span exists and would
   otherwise generate their own orphaned trace per test invocation
 - **Mechanism:** `@Advice.OnMethodEnter` / `@Advice.OnMethodExit` pair
-  - Enter: start a child span named `ClassName#methodName`
+  - Enter: start a child span named `ClassName#methodName(paramType1,paramType2,...)`, where
+    each parameter type is its fully-qualified name (JVM array notation, e.g. `[Ljava.lang.String;`,
+    for array parameters) — this lets consumers (e.g. the IntelliJ plugin's waterfall view)
+    disambiguate overloaded methods
   - Exit: end the span; if an exception is being thrown, call `span.recordException(e)`
     and set status to `ERROR`
 

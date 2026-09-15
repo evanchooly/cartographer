@@ -5,6 +5,7 @@ import com.intellij.ui.JBColor
 import com.intellij.ui.components.JBScrollPane
 import java.awt.BorderLayout
 import java.awt.Color
+import java.awt.Cursor
 import java.awt.Dimension
 import java.awt.FontMetrics
 import java.awt.Graphics
@@ -15,6 +16,7 @@ import java.awt.event.MouseEvent
 import java.awt.event.MouseWheelEvent
 import javax.swing.JPanel
 import javax.swing.SwingUtilities
+import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
 
@@ -25,6 +27,9 @@ private const val ROW_PADDING = 8
 private const val AXIS_PADDING = 10
 private const val LABEL_PADDING = 6
 private const val MAX_LABEL_WIDTH = 320
+private const val MIN_LABEL_WIDTH = 60
+private const val LABEL_RESIZE_HANDLE_PX = 4
+private const val LABEL_SCROLL_STEP = 20
 private const val DEFAULT_LABEL_WIDTH = 200
 private const val DEFAULT_VIEWPORT_WIDTH = 600
 private const val INDENT_PX = 12
@@ -49,6 +54,14 @@ class WaterfallPanel(
     private var rootStartNano: Long = 0
     private var totalNano: Long = 1
     private var zoomFactor: Double = MIN_ZOOM
+
+    // Null until the user drags the label/bar divider; once set, it overrides the
+    // content-based auto-fit width computed by labelWidth().
+    private var labelColumnWidth: Int? = null
+    private var resizingLabelColumn = false
+
+    // Horizontal pan within the label column, for names too long to fit even after resizing.
+    private var labelScrollOffset: Int = 0
 
     private val inner =
         object : JPanel() {
@@ -91,7 +104,7 @@ class WaterfallPanel(
         add(scroll, BorderLayout.CENTER)
         inner.background = JBColor.background()
         inner.toolTipText = ""
-        inner.addMouseListener(
+        val mouseHandler =
             object : MouseAdapter() {
                 override fun mouseClicked(e: MouseEvent) {
                     val fm = inner.getFontMetrics(inner.font)
@@ -107,14 +120,56 @@ class WaterfallPanel(
                         }
                     }
                 }
+
+                override fun mousePressed(e: MouseEvent) {
+                    val fm = inner.getFontMetrics(inner.font)
+                    if (isOnLabelDivider(e.x, fm)) {
+                        resizingLabelColumn = true
+                        e.consume()
+                    }
+                }
+
+                override fun mouseReleased(e: MouseEvent) {
+                    resizingLabelColumn = false
+                }
+
+                override fun mouseDragged(e: MouseEvent) {
+                    if (!resizingLabelColumn) return
+                    val fm = inner.getFontMetrics(inner.font)
+                    val durationWidth = durationLabelWidth(fm)
+                    val maxWidth =
+                        max(MIN_LABEL_WIDTH, inner.width - MIN_BAR_AREA_WIDTH - durationWidth)
+                    labelColumnWidth = e.x.coerceIn(MIN_LABEL_WIDTH, maxWidth)
+                    inner.revalidate()
+                    inner.repaint()
+                    e.consume()
+                }
+
+                override fun mouseMoved(e: MouseEvent) {
+                    val fm = inner.getFontMetrics(inner.font)
+                    inner.cursor =
+                        if (isOnLabelDivider(e.x, fm)) {
+                            Cursor.getPredefinedCursor(Cursor.E_RESIZE_CURSOR)
+                        } else {
+                            Cursor.getDefaultCursor()
+                        }
+                }
             }
-        )
+        inner.addMouseListener(mouseHandler)
+        inner.addMouseMotionListener(mouseHandler)
         inner.addMouseWheelListener { e ->
+            val fm = inner.getFontMetrics(inner.font)
             if (e.isControlDown) {
                 zoomFactor =
                     if (e.wheelRotation < 0) min(MAX_ZOOM, zoomFactor * ZOOM_STEP)
                     else max(MIN_ZOOM, zoomFactor / ZOOM_STEP)
                 inner.revalidate()
+                inner.repaint()
+                e.consume()
+            } else if (e.isShiftDown && e.x < labelWidth(fm)) {
+                val maxOffset = maxLabelScrollOffset(fm)
+                labelScrollOffset =
+                    (labelScrollOffset + e.wheelRotation * LABEL_SCROLL_STEP).coerceIn(0, maxOffset)
                 inner.repaint()
                 e.consume()
             } else {
@@ -148,6 +203,7 @@ class WaterfallPanel(
         flatSpans = flatten(roots)
         selectedSpan = null
         zoomFactor = MIN_ZOOM
+        labelScrollOffset = 0
         if (flatSpans.isNotEmpty()) {
             rootStartNano = flatSpans.minOf { it.startNano }
             totalNano = max(1L, flatSpans.maxOf { it.endNano } - rootStartNano)
@@ -173,10 +229,21 @@ class WaterfallPanel(
     private fun axisHeight(fm: FontMetrics) = fm.height + AXIS_PADDING
 
     private fun labelWidth(fm: FontMetrics): Int {
+        labelColumnWidth?.let {
+            return it
+        }
         if (flatSpans.isEmpty()) return DEFAULT_LABEL_WIDTH
-        val longest = flatSpans.maxOf { fm.stringWidth(it.simpleName) }
-        return min(MAX_LABEL_WIDTH, longest + LABEL_PADDING * 2)
+        return min(MAX_LABEL_WIDTH, longestLabelTextWidth(fm) + LABEL_PADDING * 2)
     }
+
+    private fun longestLabelTextWidth(fm: FontMetrics): Int =
+        if (flatSpans.isEmpty()) 0 else flatSpans.maxOf { fm.stringWidth(it.simpleName) }
+
+    private fun maxLabelScrollOffset(fm: FontMetrics): Int =
+        max(0, longestLabelTextWidth(fm) - (labelWidth(fm) - LABEL_PADDING * 2))
+
+    private fun isOnLabelDivider(x: Int, fm: FontMetrics) =
+        abs(x - labelWidth(fm)) <= LABEL_RESIZE_HANDLE_PX
 
     private fun durationLabelWidth(fm: FontMetrics): Int {
         if (flatSpans.isEmpty()) return 0
@@ -222,7 +289,11 @@ class WaterfallPanel(
             g.color = if (span == selectedSpan) JBColor.foreground() else JBColor.GRAY
             val label = span.simpleName
             val labelX = labelWidth - LABEL_PADDING - fm.stringWidth(label)
-            g.drawString(label, labelX.coerceAtLeast(0), y + rowHeight - ROW_PADDING / 2)
+            g.drawString(
+                label,
+                labelX.coerceAtLeast(0) - labelScrollOffset,
+                y + rowHeight - ROW_PADDING / 2
+            )
 
             // Bar (clipped)
             g.setClip(labelWidth, axisHeight, barAreaWidth, inner.height - axisHeight)

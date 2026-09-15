@@ -9,7 +9,7 @@ object CtorAdvice {
     @JvmStatic
     @Advice.OnMethodEnter(suppress = Throwable::class)
     fun onEnter(
-        @Advice.Origin("#t.#m") signature: String
+        @Advice.Origin("#t.#m#s") signature: String
     ): Scope? {
         val tracer = CartographerContext.tracer ?: return null
         return tracer.spanBuilder(signature).setParent(CartographerContext.resolveParent()).startSpan().makeCurrent()

@@ -9,7 +9,7 @@ object TestRootAdvice {
 
     @JvmStatic
     @Advice.OnMethodEnter(suppress = Throwable::class)
-    fun onEnter(@Advice.Origin("#t.#m") signature: String): Scope? {
+    fun onEnter(@Advice.Origin("#t.#m#s") signature: String): Scope? {
         val tracer = CartographerContext.tracer ?: return null
         val pending = CartographerContext.adoptPendingTrace()
         val builder = tracer.spanBuilder(signature)
